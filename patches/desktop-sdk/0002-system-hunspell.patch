@@ -37,3 +37,15 @@ index 2269d8c..6457ae8 100644
  #include "../../../../core/DesktopEditor/graphics/TemporaryCS.h"
  #include "../../../../core/DesktopEditor/graphics/Timer.h"
  #include "./plugins.h"
+diff -up desktop-sdk/ChromiumBasedEditors/lib/ascdocumentscore_helper.pro.omv~ desktop-sdk/ChromiumBasedEditors/lib/ascdocumentscore_helper.pro
+--- desktop-sdk/ChromiumBasedEditors/lib/ascdocumentscore_helper.pro.omv~	2023-02-14 07:47:21.649928949 +0100
++++ desktop-sdk/ChromiumBasedEditors/lib/ascdocumentscore_helper.pro	2023-02-14 07:47:27.041920233 +0100
+@@ -24,7 +24,7 @@ core_linux {
+     QMAKE_LFLAGS += "-Wl,-rpath,\'\$$ORIGIN/converter\'"
+     LIBS += -L$$PWD/../../../core/Common/3dParty/cef/$$CORE_BUILDS_PLATFORM_PREFIX/build -lcef
+     include($$PWD/../../../core/Common/3dParty/icu/icu.pri)
+-    ADD_DEPENDENCY(graphics, kernel, kernel_network, UnicodeConverter, PdfFile, XpsFile, DjVuFile, HtmlRenderer, hunspell, ooxmlsignature)
++    ADD_DEPENDENCY(graphics, kernel, kernel_network, UnicodeConverter, PdfFile, XpsFile, DjVuFile, HtmlRenderer, hunspell-1.7, ooxmlsignature)
+ }
+ 
+ SOURCES += helper_main.cpp

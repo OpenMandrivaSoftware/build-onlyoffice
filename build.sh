@@ -63,6 +63,8 @@ cd ..
 cd desktop-sdk/ChromiumBasedEditors/lib
 qmake ascdocumentscore.pro CEF_SRC_PATH=$(pwd)/src/cef_87/linux $(pkg-config --cflags-only-I gtk+-2.0 |sed -e 's,-I,INCLUDEPATH+=,g') DEFINES+=_LINUX CONFIG+=core_linux QMAKE_CXXFLAGS_RELEASE-=-Werror=format-security
 make -j16
+qmake ascdocumentscore_helper.pro CEF_SRC_PATH=$(pwd)/src/cef_87/linux $(pkg-config --cflags-only-I gtk+-2.0 |sed -e 's,-I,INCLUDEPATH+=,g') DEFINES+=_LINUX CONFIG+=core_linux QMAKE_CXXFLAGS_RELEASE-=-Werror=format-security
+make -j16
 cd -
 cd desktop-sdk/ChromiumBasedEditors/videoplayerlib
 qmake videoplayerlib.pro DEFINES+=_LINUX CONFIG+=core_linux
