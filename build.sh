@@ -17,16 +17,18 @@
 
 set -e
 
-for i in core desktop-sdk desktop-apps; do
+for i in core desktop-sdk desktop-apps sdkjs web-apps; do
 	if ! [ -d "$i" ]; then
 		git clone https://github.com/ONLYOFFICE/$i.git
-		PN=1
-		for p in patches/$i/*; do
-			cd $i
-			patch -p1 -b -z .p${PN}~ <../$p
-			cd ..
-			PN=$((PN+1))
-		done
+		if [ -d "patches/$i" ]; then
+			PN=1
+			for p in patches/$i/*; do
+				cd $i
+				patch -p1 -b -z .p${PN}~ <../$p
+				cd ..
+				PN=$((PN+1))
+			done
+		fi
 	fi
 done
 
