@@ -1,0 +1,187 @@
+diff -up core/Common/base.pri.omv~ core/Common/base.pri
+diff -up core/Common/kernel.pro.omv~ core/Common/kernel.pro
+--- core/Common/kernel.pro.omv~	2023-02-14 06:41:20.001820397 +0100
++++ core/Common/kernel.pro	2023-02-14 06:41:30.956827137 +0100
+@@ -8,8 +8,6 @@ TEMPLATE = lib
+ CONFIG += shared
+ CONFIG += plugin
+ 
+-CONFIG += core_static_link_libstd
+-
+ DEFINES += KERNEL_USE_DYNAMIC_LIBRARY_BUILDING
+ 
+ # CONFIG
+diff -up core/DesktopEditor/doctrenderer/app_builder/docbuilder.pro.omv~ core/DesktopEditor/doctrenderer/app_builder/docbuilder.pro
+--- core/DesktopEditor/doctrenderer/app_builder/docbuilder.pro.omv~	2023-02-14 06:44:54.020555554 +0100
++++ core/DesktopEditor/doctrenderer/app_builder/docbuilder.pro	2023-02-14 06:44:59.024586037 +0100
+@@ -19,8 +19,6 @@ DEFINES += INTVER=$$BINARYVERSION
+ 
+ TEMPLATE = app
+ 
+-CONFIG += core_static_link_libstd
+-
+ CORE_ROOT_DIR = $$PWD/../../../../core
+ PWD_ROOT_DIR = $$PWD
+ include($$CORE_ROOT_DIR/Common/base.pri)
+diff -up core/DesktopEditor/xmlsec/src/ooxmlsignature.pro.omv~ core/DesktopEditor/xmlsec/src/ooxmlsignature.pro
+--- core/DesktopEditor/xmlsec/src/ooxmlsignature.pro.omv~	2023-02-14 06:45:14.581684128 +0100
++++ core/DesktopEditor/xmlsec/src/ooxmlsignature.pro	2023-02-14 06:45:23.340741517 +0100
+@@ -10,8 +10,6 @@ CONFIG += plugin
+ 
+ CONFIG += c++11
+ 
+-CONFIG += core_static_link_libstd
+-
+ CORE_ROOT_DIR = $$PWD/../../..
+ PWD_ROOT_DIR = $$PWD
+ include($$CORE_ROOT_DIR/Common/base.pri)
+diff -up core/DjVuFile/DjVuFile.pro.omv~ core/DjVuFile/DjVuFile.pro
+--- core/DjVuFile/DjVuFile.pro.omv~	2023-02-14 06:45:32.876805733 +0100
++++ core/DjVuFile/DjVuFile.pro	2023-02-14 06:45:36.917833486 +0100
+@@ -7,8 +7,6 @@ TEMPLATE = lib
+ CONFIG += shared
+ CONFIG += plugin
+ 
+-CONFIG += core_static_link_libstd
+-
+ DEFINES += DJVU_USE_DYNAMIC_LIBRARY
+ 
+ CORE_ROOT_DIR = $$PWD/..
+diff -up core/DocxRenderer/DocxRenderer.pro.omv~ core/DocxRenderer/DocxRenderer.pro
+--- core/DocxRenderer/DocxRenderer.pro.omv~	2023-02-14 06:45:44.078883432 +0100
++++ core/DocxRenderer/DocxRenderer.pro	2023-02-14 06:45:49.997925463 +0100
+@@ -7,8 +7,6 @@ TEMPLATE = lib
+ CONFIG += shared
+ CONFIG += plugin
+ 
+-CONFIG += core_static_link_libstd
+-
+ CORE_ROOT_DIR = $$PWD/..
+ PWD_ROOT_DIR = $$PWD
+ include(../Common/base.pri)
+diff -up core/EpubFile/CEpubFile.pro.omv~ core/EpubFile/CEpubFile.pro
+--- core/EpubFile/CEpubFile.pro.omv~	2023-02-14 06:45:59.318992987 +0100
++++ core/EpubFile/CEpubFile.pro	2023-02-14 06:46:01.679010339 +0100
+@@ -7,8 +7,6 @@ TEMPLATE = lib
+ CONFIG += shared
+ CONFIG += plugin
+ 
+-CONFIG += core_static_link_libstd
+-
+ DEFINES += EPUBFILE_USE_DYNAMIC_LIBRARY
+ 
+ CORE_ROOT_DIR = $$PWD/..
+diff -up core/Fb2File/Fb2File.pro.omv~ core/Fb2File/Fb2File.pro
+--- core/Fb2File/Fb2File.pro.omv~	2023-02-14 06:46:10.530076332 +0100
++++ core/Fb2File/Fb2File.pro	2023-02-14 06:46:13.509098863 +0100
+@@ -7,7 +7,6 @@ TEMPLATE = lib
+ 
+ CONFIG += shared
+ CONFIG += plugin
+-CONFIG += core_static_link_libstd
+ 
+ DEFINES += FB2FILE_USE_DYNAMIC_LIBRARY
+ 
+diff -up core/HtmlFile2/HtmlFile2.pro.omv~ core/HtmlFile2/HtmlFile2.pro
+--- core/HtmlFile2/HtmlFile2.pro.omv~	2023-02-14 06:46:29.759224571 +0100
++++ core/HtmlFile2/HtmlFile2.pro	2023-02-14 06:46:32.251244256 +0100
+@@ -7,7 +7,6 @@ TEMPLATE = lib
+ 
+ CONFIG += shared
+ CONFIG += plugin
+-CONFIG += core_static_link_libstd
+ 
+ DEFINES += HTMLFILE2_USE_DYNAMIC_LIBRARY
+ DEFINES += CSSCALCULATOR_LIBRARY_STATIC
+diff -up core/HtmlFile/HtmlFile.pro.omv~ core/HtmlFile/HtmlFile.pro
+--- core/HtmlFile/HtmlFile.pro.omv~	2023-02-14 06:46:21.645161213 +0100
++++ core/HtmlFile/HtmlFile.pro	2023-02-14 06:46:24.032179728 +0100
+@@ -7,8 +7,6 @@ TEMPLATE = lib
+ CONFIG += shared
+ CONFIG += plugin
+ 
+-CONFIG += core_static_link_libstd
+-
+ DEFINES += HTMLFILE_USE_DYNAMIC_LIBRARY
+ DEFINES += UNICODECONVERTER_USE_DYNAMIC_LIBRARY
+ 
+diff -up core/HtmlRenderer/htmlrenderer.pro.omv~ core/HtmlRenderer/htmlrenderer.pro
+--- core/HtmlRenderer/htmlrenderer.pro.omv~	2023-02-14 06:46:39.135299207 +0100
++++ core/HtmlRenderer/htmlrenderer.pro	2023-02-14 06:46:40.988314136 +0100
+@@ -8,8 +8,6 @@ TEMPLATE = lib
+ CONFIG += shared
+ CONFIG += plugin
+ 
+-CONFIG += core_static_link_libstd
+-
+ DEFINES += HTMLRENDERER_USE_DYNAMIC_LIBRARY
+ 
+ CORE_ROOT_DIR = $$PWD/..
+diff -up core/OfficeCryptReader/ooxml_crypt/ooxml_crypt.pro.omv~ core/OfficeCryptReader/ooxml_crypt/ooxml_crypt.pro
+--- core/OfficeCryptReader/ooxml_crypt/ooxml_crypt.pro.omv~	2023-02-14 06:46:48.381374288 +0100
++++ core/OfficeCryptReader/ooxml_crypt/ooxml_crypt.pro	2023-02-14 06:46:50.121388576 +0100
+@@ -7,7 +7,6 @@ TARGET = ooxml_crypt
+ CORE_ROOT_DIR = $$PWD/../..
+ PWD_ROOT_DIR = $$PWD
+ 
+-CONFIG += core_static_link_libstd
+ include($$CORE_ROOT_DIR/Common/base.pri)
+ include($$CORE_ROOT_DIR/Common/3dParty/boost/boost.pri)
+ 
+diff -up core/PdfFile/PdfFile.pro.omv~ core/PdfFile/PdfFile.pro
+--- core/PdfFile/PdfFile.pro.omv~	2023-02-14 06:46:56.382440422 +0100
++++ core/PdfFile/PdfFile.pro	2023-02-14 06:46:57.875452879 +0100
+@@ -7,7 +7,6 @@ TEMPLATE = lib
+ 
+ CONFIG += shared
+ CONFIG += plugin
+-CONFIG += core_static_link_libstd
+ 
+ CORE_ROOT_DIR = $$PWD/..
+ PWD_ROOT_DIR = $$PWD
+diff -up core/UnicodeConverter/UnicodeConverter.pro.omv~ core/UnicodeConverter/UnicodeConverter.pro
+--- core/UnicodeConverter/UnicodeConverter.pro.omv~	2023-02-14 06:47:06.039521653 +0100
++++ core/UnicodeConverter/UnicodeConverter.pro	2023-02-14 06:47:07.394533175 +0100
+@@ -6,7 +6,6 @@ TEMPLATE = lib
+ 
+ CONFIG += shared
+ CONFIG += plugin
+-CONFIG += core_static_link_libstd
+ 
+ CORE_ROOT_DIR = $$PWD/..
+ PWD_ROOT_DIR = $$PWD
+diff -up core/X2tConverter/build/Qt/X2tConverter.pri.omv~ core/X2tConverter/build/Qt/X2tConverter.pri
+--- core/X2tConverter/build/Qt/X2tConverter.pri.omv~	2023-02-14 06:47:15.886606045 +0100
++++ core/X2tConverter/build/Qt/X2tConverter.pri	2023-02-14 06:47:17.797622605 +0100
+@@ -11,7 +11,6 @@ TARGET = x2t
+ CORE_ROOT_DIR = $$PWD/../../..
+ PWD_ROOT_DIR = $$PWD
+ 
+-CONFIG += core_static_link_libstd
+ CONFIG += core_x2t
+ include(../../../Common/base.pri)
+ include(../../../Common/3dParty/icu/icu.pri)
+diff -up core/X2tConverter/build/Qt/X2tConverter.pro.omv~ core/X2tConverter/build/Qt/X2tConverter.pro
+--- core/X2tConverter/build/Qt/X2tConverter.pro.omv~	2023-02-14 06:47:23.639673588 +0100
++++ core/X2tConverter/build/Qt/X2tConverter.pro	2023-02-14 06:47:26.842701763 +0100
+@@ -19,8 +19,6 @@ build_x2t_as_library {
+ 
+     CONFIG += shared
+     CONFIG += plugin
+-
+-    CONFIG += core_static_link_libstd
+ }
+ 
+ include(X2tConverter.pri)
+diff -up core/XpsFile/XpsFile.pro.omv~ core/XpsFile/XpsFile.pro
+--- core/XpsFile/XpsFile.pro.omv~	2023-02-14 06:47:36.136784436 +0100
++++ core/XpsFile/XpsFile.pro	2023-02-14 06:47:38.411804872 +0100
+@@ -7,8 +7,6 @@ TEMPLATE = lib
+ CONFIG += shared
+ CONFIG += plugin
+ 
+-CONFIG += core_static_link_libstd
+-
+ CORE_ROOT_DIR = $$PWD/..
+ PWD_ROOT_DIR = $$PWD
+ include(../Common/base.pri)

@@ -1,0 +1,11 @@
+diff -up desktop-apps/win-linux/defaults.pri.omv~ desktop-apps/win-linux/defaults.pri
+--- desktop-apps/win-linux/defaults.pri.omv~	2023-02-14 06:48:49.793484567 +0100
++++ desktop-apps/win-linux/defaults.pri	2023-02-14 06:49:07.194660896 +0100
+@@ -200,7 +200,6 @@ core_linux {
+ 
+     QMAKE_LFLAGS += "-Wl,-rpath,\'\$$ORIGIN\'"
+     QMAKE_LFLAGS += "-Wl,-rpath,\'\$$ORIGIN/converter\'"
+-    QMAKE_LFLAGS += -static-libstdc++ -static-libgcc
+ 
+     HEADERS +=  $$PWD/src/windows/platform_linux/cx11decoration.h \
+                 #$$PWD/src/windows/platform_linux/gtk_addon.h \
