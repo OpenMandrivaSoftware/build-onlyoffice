@@ -1,0 +1,67 @@
+diff --git a/Common/3dParty/icu/icu.pri b/Common/3dParty/icu/icu.pri
+index d63020fa5..f0c7b59cf 100644
+--- a/Common/3dParty/icu/icu.pri
++++ b/Common/3dParty/icu/icu.pri
+@@ -1,3 +1,4 @@
++use_bundled_icu {
+ ICU_MAJOR_VER = 58
+ 
+ core_windows {
+@@ -48,3 +49,6 @@ core_android {
+     LIBS        += $$PWD/android/build/$$ICU_LIBS_PATH/libicuuc.a
+     LIBS        += $$PWD/android/build/$$ICU_LIBS_PATH/libicudata.a
+ }
++} else {
++    LIBS += -licuuc -licudata
++}
+diff --git a/UnicodeConverter/UnicodeConverter.cpp b/UnicodeConverter/UnicodeConverter.cpp
+index 61f1403f9..60d517f52 100644
+--- a/UnicodeConverter/UnicodeConverter.cpp
++++ b/UnicodeConverter/UnicodeConverter.cpp
+@@ -131,7 +131,7 @@ namespace NSUnicodeConverter
+ 								char *sResCur = sResStart;
+ 								const char *sResLimit = sResCur + nOutputLen * ucnv_getMaxCharSize(conv);
+ 
+-								ucnv_fromUnicode(conv, &sResCur, sResLimit, &pOutputStart, pOutputLimit, NULL, TRUE, &status);
++								ucnv_fromUnicode(conv, &sResCur, sResLimit, &pOutputStart, pOutputLimit, NULL, true, &status);
+ 								if (U_SUCCESS(status))
+ 								{
+ 									sRes = std::string(sResStart, sResCur - sResStart);
+@@ -180,7 +180,7 @@ namespace NSUnicodeConverter
+ 						char *sResCur = sResStart;
+ 						const char *sResLimit = sResCur + sRes.size();
+ 
+-						ucnv_fromUnicode(conv, &sResCur, sResLimit, &pUCharStart, pUCharLimit, NULL, TRUE, &status);
++						ucnv_fromUnicode(conv, &sResCur, sResLimit, &pUCharStart, pUCharLimit, NULL, true, &status);
+ 						if (U_SUCCESS(status))
+ 						{
+ 							sRes.resize(sResCur - sResStart);
+@@ -223,7 +223,7 @@ namespace NSUnicodeConverter
+ 						UChar* target = targetStart;
+ 						UChar* targetLimit = target + uBufSize;
+ 
+-						ucnv_toUnicode(conv, &target, targetLimit, &source, sourceLimit, NULL, TRUE, &status);
++						ucnv_toUnicode(conv, &target, targetLimit, &source, sourceLimit, NULL, true, &status);
+ 						if (U_SUCCESS(status))
+ 						{
+ 							size_t nTargetSize = target - targetStart;
+@@ -278,7 +278,7 @@ namespace NSUnicodeConverter
+ 						UChar* target = targetStart;
+ 						UChar* targetLimit = target + uBufSize;
+ 
+-						ucnv_toUnicode(conv, &target, targetLimit, &source, sourceLimit, NULL, TRUE, &status);
++						ucnv_toUnicode(conv, &target, targetLimit, &source, sourceLimit, NULL, true, &status);
+ 						if (U_SUCCESS(status))
+ 						{
+ 							size_t nTargetSize = target - targetStart;
+diff --git a/UnicodeConverter/UnicodeConverter.pro b/UnicodeConverter/UnicodeConverter.pro
+index f58f5bd3f..0b61666cf 100644
+--- a/UnicodeConverter/UnicodeConverter.pro
++++ b/UnicodeConverter/UnicodeConverter.pro
+@@ -38,4 +38,6 @@ SOURCES += \
+ 
+ HEADERS +=\
+     UnicodeConverter.h
++
++LIBS += -licuuc
+ }

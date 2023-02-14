@@ -1,0 +1,13 @@
+diff --git a/DesktopEditor/freetype-2.10.4/builds/unix/ftsystem.c b/DesktopEditor/freetype-2.10.4/builds/unix/ftsystem.c
+index b4d71d40e..e64686b95 100644
+--- a/DesktopEditor/freetype-2.10.4/builds/unix/ftsystem.c
++++ b/DesktopEditor/freetype-2.10.4/builds/unix/ftsystem.c
+@@ -25,6 +25,8 @@
+ #include <freetype/fttypes.h>
+ #include <freetype/internal/ftstream.h>
+ 
++#include <fcntl.h>
++
+   /* memory-mapping includes and definitions */
+ #ifdef HAVE_UNISTD_H
+ #include <unistd.h>

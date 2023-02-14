@@ -1,0 +1,39 @@
+diff --git a/ChromiumBasedEditors/lib/ascdocumentscore.pri b/ChromiumBasedEditors/lib/ascdocumentscore.pri
+index df3a3aa..b3a8425 100644
+--- a/ChromiumBasedEditors/lib/ascdocumentscore.pri
++++ b/ChromiumBasedEditors/lib/ascdocumentscore.pri
+@@ -25,7 +25,7 @@ DEFINES += DESKTOP_USE_DYNAMIC_LIBRARY_BUILDING
+ 
+ core_mac:DEFINES += _XCODE
+ 
+-ADD_DEPENDENCY(graphics, kernel, UnicodeConverter, kernel_network, PdfFile, XpsFile, DjVuFile, HtmlRenderer, hunspell, ooxmlsignature)
++ADD_DEPENDENCY(graphics, kernel, UnicodeConverter, kernel_network, PdfFile, XpsFile, DjVuFile, HtmlRenderer, hunspell-1.7, ooxmlsignature)
+ !core_windows:DEFINES += DOCUMENTSCORE_OPENSSL_SUPPORT
+ 
+ CEF_PROJECT_PRI=$$PWD/cef_pri
+diff --git a/ChromiumBasedEditors/lib/qt_wrapper/qtascdocumentscore.pro b/ChromiumBasedEditors/lib/qt_wrapper/qtascdocumentscore.pro
+index 0bd1406..0a0bf0d 100644
+--- a/ChromiumBasedEditors/lib/qt_wrapper/qtascdocumentscore.pro
++++ b/ChromiumBasedEditors/lib/qt_wrapper/qtascdocumentscore.pro
+@@ -42,7 +42,7 @@ core_linux {
+ 
+     LIBS += -L$$CORE_ROOT_DIR/Common/3dParty/cef/$$CORE_BUILDS_PLATFORM_PREFIX/build -lcef
+     include($$CORE_ROOT_DIR/Common/3dParty/icu/icu.pri)
+-    ADD_DEPENDENCY(graphics, kernel, UnicodeConverter, PdfFile, XpsFile, DjVuFile, HtmlRenderer, hunspell, ooxmlsignature)
++    ADD_DEPENDENCY(graphics, kernel, UnicodeConverter, PdfFile, XpsFile, DjVuFile, HtmlRenderer, hunspell-1.7, ooxmlsignature)
+     LIBS += -lX11
+ 
+ }
+diff --git a/ChromiumBasedEditors/lib/src/spellchecker.cpp b/ChromiumBasedEditors/lib/src/spellchecker.cpp
+index 2269d8c..6457ae8 100644
+--- a/ChromiumBasedEditors/lib/src/spellchecker.cpp
++++ b/ChromiumBasedEditors/lib/src/spellchecker.cpp
+@@ -33,7 +33,7 @@
+ #include "../src/applicationmanager_p.h"
+ #include <map>
+ #include <list>
+-#include "../../../../core/Common/3dParty/hunspell/hunspell/src/hunspell/hunspell.h"
++#include <hunspell/hunspell.h>
+ #include "../../../../core/DesktopEditor/graphics/TemporaryCS.h"
+ #include "../../../../core/DesktopEditor/graphics/Timer.h"
+ #include "./plugins.h"

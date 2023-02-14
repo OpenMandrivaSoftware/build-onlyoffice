@@ -1,0 +1,13 @@
+diff --git a/win-linux/defaults.pri b/win-linux/defaults.pri
+index 4becf6d2..0e77e7c0 100644
+--- a/win-linux/defaults.pri
++++ b/win-linux/defaults.pri
+@@ -193,7 +193,7 @@ core_windows {
+ }
+ core_linux:LIBS += -L$$CORE_3DPARTY_PATH/cef/$$PLATFORM_BUILD/build -lcef
+ 
+-ADD_DEPENDENCY(PdfFile, DjVuFile, XpsFile, HtmlRenderer, UnicodeConverter, hunspell, ooxmlsignature, kernel, kernel_network, graphics, videoplayer, ascdocumentscore, qtascdocumentscore)
++ADD_DEPENDENCY(PdfFile, DjVuFile, XpsFile, HtmlRenderer, UnicodeConverter, hunspell-1.7, ooxmlsignature, kernel, kernel_network, graphics, videoplayer, ascdocumentscore, qtascdocumentscore)
+ 
+ core_linux {
+     QT += network x11extras

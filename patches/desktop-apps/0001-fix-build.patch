@@ -1,0 +1,38 @@
+diff --git a/win-linux/ASCDocumentEditor.pro b/win-linux/ASCDocumentEditor.pro
+index b6cf1ecd..f9c734e9 100644
+--- a/win-linux/ASCDocumentEditor.pro
++++ b/win-linux/ASCDocumentEditor.pro
+@@ -33,6 +33,9 @@ win32 {
+         message(url: $$join(LINK,,\\\",\\\"))
+     }
+ }
++linux {
++    QT += x11extras
++}
+ 
+ HEADERS += \
+     src/prop/cmainwindowimpl.h
+diff --git a/win-linux/src/components/asctabwidget.h b/win-linux/src/components/asctabwidget.h
+index 1b25c4bf..0084a3d5 100644
+--- a/win-linux/src/components/asctabwidget.h
++++ b/win-linux/src/components/asctabwidget.h
+@@ -38,7 +38,6 @@
+ #include <QtWidgets/QTabBar>
+ #include <QtWidgets/QPushButton>
+ #include "ctabbarwrapper.h"
+-#include "qcefview.h"
+ #include "cscalingwrapper.h"
+ #include "ctabpanel.h"
+ 
+diff --git a/win-linux/src/components/ctabpanel.h b/win-linux/src/components/ctabpanel.h
+index d6f41047..191f65b2 100644
+--- a/win-linux/src/components/ctabpanel.h
++++ b/win-linux/src/components/ctabpanel.h
+@@ -4,7 +4,6 @@
+ #include <QWidget>
+ #include <QTimer>
+ 
+-#include "qcefview.h"
+ #include "casctabdata.h"
+ 
+ class CTabPanel : public QWidget

@@ -18,7 +18,16 @@
 set -e
 
 for i in core desktop-sdk desktop-apps; do
-	[ -d "$i" ] || git clone https://github.com/ONLYOFFICE/$i.git
+	if ! [ -d "$i" ]; then
+		git clone https://github.com/ONLYOFFICE/$i.git
+		PN=1
+		for p in patches/$i/*; do
+			cd $i
+			patch -p1 -b -z .p${PN}~ <../$p
+			cd ..
+			PN=$((PN+1))
+		done
+	fi
 done
 
 if ! [ -e core/Common/3dParty/cef/build ]; then

@@ -1,0 +1,16 @@
+diff --git a/ChromiumBasedEditors/lib/ascdocumentscore.pri b/ChromiumBasedEditors/lib/ascdocumentscore.pri
+index df3a3aa..b3a8425 100644
+--- a/ChromiumBasedEditors/lib/ascdocumentscore.pri
++++ b/ChromiumBasedEditors/lib/ascdocumentscore.pri
+@@ -106,7 +106,11 @@ SOURCES += \
+ 
+ # crypto ----------------------------------
+ LIBS += -L$$CORE_BUILDS_LIBRARIES_PATH -lCompoundFileLib
++use_bundled_cryptopp {
+ LIBS += -L$$CORE_BUILDS_LIBRARIES_PATH -lCryptoPPLib
++} else {
++LIBS += -lcryptopp
++}
+ DEFINES += CRYPTOPP_DISABLE_ASM
+ HEADERS += \
+     $$CORE_ROOT_DIR/OfficeCryptReader/source/ECMACryptFile.h \

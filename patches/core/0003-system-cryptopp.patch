@@ -1,0 +1,35 @@
+diff --git a/OfficeCryptReader/ooxml_crypt/ooxml_crypt.pro b/OfficeCryptReader/ooxml_crypt/ooxml_crypt.pro
+index db206a5a1..12a040486 100644
+--- a/OfficeCryptReader/ooxml_crypt/ooxml_crypt.pro
++++ b/OfficeCryptReader/ooxml_crypt/ooxml_crypt.pro
+@@ -11,7 +11,12 @@ CONFIG += core_static_link_libstd
+ include($$CORE_ROOT_DIR/Common/base.pri)
+ include($$CORE_ROOT_DIR/Common/3dParty/boost/boost.pri)
+ 
+-LIBS += -L$$CORE_BUILDS_LIBRARIES_PATH -lCryptoPPLib -lCompoundFileLib
++use_bundled_cryptopp {
++LIBS += -L$$CORE_BUILDS_LIBRARIES_PATH -lCryptoPPLib
++} else {
++LIBS += -lcryptopp
++}
++LIBS += -L$$CORE_BUILDS_LIBRARIES_PATH -lCompoundFileLib
+ ADD_DEPENDENCY(UnicodeConverter, kernel)
+ 
+ include($$CORE_ROOT_DIR/Common/3dParty/icu/icu.pri)
+diff --git a/PdfFile/PdfFile.pro b/PdfFile/PdfFile.pro
+index d61b39ef4..3f37752ce 100644
+--- a/PdfFile/PdfFile.pro
++++ b/PdfFile/PdfFile.pro
+@@ -111,7 +111,11 @@ build_viewer_module {
+ 
+ DEFINES += CRYPTOPP_DISABLE_ASM \
+            NOMINMAX
+-LIBS += -L$$CORE_BUILDS_LIBRARIES_PATH -lCryptoPPLib
++use_bundled_cryptopp {
++    LIBS += -L$$CORE_BUILDS_LIBRARIES_PATH -lCryptoPPLib
++} else {
++    LIBS += -lcryptopp
++}
+ 
+ core_linux {
+     DEFINES += HAVE_UNISTD_H \
