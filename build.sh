@@ -50,6 +50,13 @@ fi
 # Still need to figure out how to build that from source -- seems to be
 # incomplete
 #[ -e cef.tar.gz ] || wget -O cef.tar.gz https://bitbucket.org/chromiumembedded/cef/get/36ee304ed48f.tar.gz
+if ! [ -d cef ]; then
+	wget https://bitbucket.org/chromiumembedded/cef/raw/master/tools/automate/automate-git.py
+	# We know from https://github.com/ONLYOFFICE/build_tools/blob/master/scripts/core_common/modules/cef.py
+	# that OnlyOffice likes branch 4280. Other valid branches can be found at
+	# https://bitbucket.org/chromiumembedded/cef/wiki/BranchesAndBuilding.md
+	python automate-git.py --no-build --download-dir=$(pwd)/cef --branch=4280
+fi
 
 cd core
 for i in UnicodeConverter/UnicodeConverter.pro Common/kernel.pro Common/Network/network.pro DesktopEditor/graphics/pro/graphics.pro HtmlRenderer/htmlrenderer.pro PdfFile/PdfFile.pro DjVuFile/DjVuFile.pro XpsFile/XpsFile.pro Common/cfcpp/cfcpp.pro OfficeCryptReader/ooxml_crypt/ooxml_crypt.pro DesktopEditor/xmlsec/src/ooxmlsignature.pro; do
