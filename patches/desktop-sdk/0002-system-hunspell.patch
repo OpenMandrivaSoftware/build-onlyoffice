@@ -1,33 +1,17 @@
-diff --git a/ChromiumBasedEditors/lib/ascdocumentscore.pri b/ChromiumBasedEditors/lib/ascdocumentscore.pri
-index df3a3aa..b3a8425 100644
---- a/ChromiumBasedEditors/lib/ascdocumentscore.pri
-+++ b/ChromiumBasedEditors/lib/ascdocumentscore.pri
-@@ -25,7 +25,7 @@ DEFINES += DESKTOP_USE_DYNAMIC_LIBRARY_BUILDING
- 
- core_mac:DEFINES += _XCODE
+diff -up desktop-sdk/ChromiumBasedEditors/lib/ascdocumentscore.pri.p2~ desktop-sdk/ChromiumBasedEditors/lib/ascdocumentscore.pri
+--- desktop-sdk/ChromiumBasedEditors/lib/ascdocumentscore.pri.p2~	2023-07-30 19:50:56.181654684 +0200
++++ desktop-sdk/ChromiumBasedEditors/lib/ascdocumentscore.pri	2023-07-30 19:52:25.878618338 +0200
+@@ -160,4 +160,4 @@ core_linux {
+     QMAKE_LFLAGS += -Wl,--disable-new-dtags
+ }
  
 -ADD_DEPENDENCY(graphics, kernel, UnicodeConverter, kernel_network, PdfFile, XpsFile, DjVuFile, HtmlRenderer, hunspell, ooxmlsignature)
 +ADD_DEPENDENCY(graphics, kernel, UnicodeConverter, kernel_network, PdfFile, XpsFile, DjVuFile, HtmlRenderer, hunspell-1.7, ooxmlsignature)
- !core_windows:DEFINES += DOCUMENTSCORE_OPENSSL_SUPPORT
- 
- CEF_PROJECT_PRI=$$PWD/cef_pri
-diff --git a/ChromiumBasedEditors/lib/qt_wrapper/qtascdocumentscore.pro b/ChromiumBasedEditors/lib/qt_wrapper/qtascdocumentscore.pro
-index 0bd1406..0a0bf0d 100644
---- a/ChromiumBasedEditors/lib/qt_wrapper/qtascdocumentscore.pro
-+++ b/ChromiumBasedEditors/lib/qt_wrapper/qtascdocumentscore.pro
-@@ -42,7 +42,7 @@ core_linux {
- 
-     LIBS += -L$$CORE_ROOT_DIR/Common/3dParty/cef/$$CORE_BUILDS_PLATFORM_PREFIX/build -lcef
-     include($$CORE_ROOT_DIR/Common/3dParty/icu/icu.pri)
--    ADD_DEPENDENCY(graphics, kernel, UnicodeConverter, PdfFile, XpsFile, DjVuFile, HtmlRenderer, hunspell, ooxmlsignature)
-+    ADD_DEPENDENCY(graphics, kernel, UnicodeConverter, PdfFile, XpsFile, DjVuFile, HtmlRenderer, hunspell-1.7, ooxmlsignature)
-     LIBS += -lX11
- 
- }
-diff --git a/ChromiumBasedEditors/lib/src/spellchecker.cpp b/ChromiumBasedEditors/lib/src/spellchecker.cpp
-index 2269d8c..6457ae8 100644
---- a/ChromiumBasedEditors/lib/src/spellchecker.cpp
-+++ b/ChromiumBasedEditors/lib/src/spellchecker.cpp
+diff -up desktop-sdk/ChromiumBasedEditors/lib/ascdocumentscore_helper.pro.p2~ desktop-sdk/ChromiumBasedEditors/lib/ascdocumentscore_helper.pro
+diff -up desktop-sdk/ChromiumBasedEditors/lib/qt_wrapper/qtascdocumentscore.pro.p2~ desktop-sdk/ChromiumBasedEditors/lib/qt_wrapper/qtascdocumentscore.pro
+diff -up desktop-sdk/ChromiumBasedEditors/lib/src/spellchecker.cpp.p2~ desktop-sdk/ChromiumBasedEditors/lib/src/spellchecker.cpp
+--- desktop-sdk/ChromiumBasedEditors/lib/src/spellchecker.cpp.p2~	2023-07-30 19:50:55.746649956 +0200
++++ desktop-sdk/ChromiumBasedEditors/lib/src/spellchecker.cpp	2023-07-30 19:50:56.181654684 +0200
 @@ -33,7 +33,7 @@
  #include "../src/applicationmanager_p.h"
  #include <map>
@@ -37,15 +21,3 @@ index 2269d8c..6457ae8 100644
  #include "../../../../core/DesktopEditor/graphics/TemporaryCS.h"
  #include "../../../../core/DesktopEditor/graphics/Timer.h"
  #include "./plugins.h"
-diff -up desktop-sdk/ChromiumBasedEditors/lib/ascdocumentscore_helper.pro.omv~ desktop-sdk/ChromiumBasedEditors/lib/ascdocumentscore_helper.pro
---- desktop-sdk/ChromiumBasedEditors/lib/ascdocumentscore_helper.pro.omv~	2023-02-14 07:47:21.649928949 +0100
-+++ desktop-sdk/ChromiumBasedEditors/lib/ascdocumentscore_helper.pro	2023-02-14 07:47:27.041920233 +0100
-@@ -24,7 +24,7 @@ core_linux {
-     QMAKE_LFLAGS += "-Wl,-rpath,\'\$$ORIGIN/converter\'"
-     LIBS += -L$$PWD/../../../core/Common/3dParty/cef/$$CORE_BUILDS_PLATFORM_PREFIX/build -lcef
-     include($$PWD/../../../core/Common/3dParty/icu/icu.pri)
--    ADD_DEPENDENCY(graphics, kernel, kernel_network, UnicodeConverter, PdfFile, XpsFile, DjVuFile, HtmlRenderer, hunspell, ooxmlsignature)
-+    ADD_DEPENDENCY(graphics, kernel, kernel_network, UnicodeConverter, PdfFile, XpsFile, DjVuFile, HtmlRenderer, hunspell-1.7, ooxmlsignature)
- }
- 
- SOURCES += helper_main.cpp

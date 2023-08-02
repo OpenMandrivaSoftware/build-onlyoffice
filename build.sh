@@ -23,6 +23,7 @@ for i in core desktop-sdk desktop-apps sdkjs web-apps; do
 		if [ -d "patches/$i" ]; then
 			PN=1
 			for p in patches/$i/*; do
+				echo "=== Applying $(basename $p) in $i... ==="
 				cd $i
 				patch -p1 -b -z .p${PN}~ <../$p
 				cd ..
@@ -31,32 +32,6 @@ for i in core desktop-sdk desktop-apps sdkjs web-apps; do
 		fi
 	fi
 done
-
-if ! [ -e core/Common/3dParty/cef/build ]; then
-	# FIXME urgently: build libcef from source instead of relying
-	# on the weird, unknown-origin, binaries!
-	# Binary URL is taken from
-	# https://github.com/ONLYOFFICE/build_tools/blob/master/scripts/core_common/modules/cef.py
-	[ -e cef_binary.7z ] || wget http://d2ettrnqo7v976.cloudfront.net/cef/4280/linux_64/cef_binary.7z
-
-	cd core/Common/3dParty/cef
-	tar xf ../../../../cef_binary.7z
-	ln -s cef_binary/Release build
-	cd -
-fi
-
-# According to https://bitbucket.org/chromiumembedded/cef/src/4280/, 4280
-# corresponds to commit 36ee304ed48f
-# Still need to figure out how to build that from source -- seems to be
-# incomplete
-#[ -e cef.tar.gz ] || wget -O cef.tar.gz https://bitbucket.org/chromiumembedded/cef/get/36ee304ed48f.tar.gz
-if ! [ -d cef ]; then
-	wget https://bitbucket.org/chromiumembedded/cef/raw/master/tools/automate/automate-git.py
-	# We know from https://github.com/ONLYOFFICE/build_tools/blob/master/scripts/core_common/modules/cef.py
-	# that OnlyOffice likes branch 4280. Other valid branches can be found at
-	# https://bitbucket.org/chromiumembedded/cef/wiki/BranchesAndBuilding.md
-	python automate-git.py --no-build --download-dir=$(pwd)/cef --branch=4280
-fi
 
 cd core
 for i in UnicodeConverter/UnicodeConverter.pro Common/kernel.pro Common/Network/network.pro DesktopEditor/graphics/pro/graphics.pro HtmlRenderer/htmlrenderer.pro PdfFile/PdfFile.pro DjVuFile/DjVuFile.pro XpsFile/XpsFile.pro Common/cfcpp/cfcpp.pro OfficeCryptReader/ooxml_crypt/ooxml_crypt.pro DesktopEditor/xmlsec/src/ooxmlsignature.pro; do
@@ -69,10 +44,19 @@ for i in UnicodeConverter/UnicodeConverter.pro Common/kernel.pro Common/Network/
 done
 cd ..
 
+# Drop internal cef prebuilt binaries, and pull in ours
+# (correct architecture, ungoogled and no GTK dep)
+rm -rf desktop-sdk/ChromiumBasedEditors/lib/src/cef/linux
+mkdir -p desktop-sdk/ChromiumBasedEditors/lib/src/cef/linux
+cp -a /usr/lib64/cef/* desktop-sdk/ChromiumBasedEditors/lib/src/cef/linux/
+rm -rf core/Common/3dParty/cef
+mkdir -p core/Common/3dParty/cef/build
+ln -s /usr/lib64/cef/Release/libcef.so core/Common/3dParty/cef/build/
+
 cd desktop-sdk/ChromiumBasedEditors/lib
-qmake ascdocumentscore.pro CEF_SRC_PATH=$(pwd)/src/cef_87/linux $(pkg-config --cflags-only-I gtk+-2.0 |sed -e 's,-I,INCLUDEPATH+=,g') DEFINES+=_LINUX CONFIG+=core_linux QMAKE_CXXFLAGS_RELEASE-=-Werror=format-security
+qmake ascdocumentscore.pro CEF_SRC_PATH=$(pwd)/src/cef/linux $(pkg-config --cflags-only-I gtk+-3.0 |sed -e 's,-I,INCLUDEPATH+=,g') DEFINES+=_LINUX CONFIG+=core_linux QMAKE_CXXFLAGS_RELEASE-=-Werror=format-security
 make -j16
-qmake ascdocumentscore_helper.pro CEF_SRC_PATH=$(pwd)/src/cef_87/linux $(pkg-config --cflags-only-I gtk+-2.0 |sed -e 's,-I,INCLUDEPATH+=,g') DEFINES+=_LINUX CONFIG+=core_linux QMAKE_CXXFLAGS_RELEASE-=-Werror=format-security
+qmake ascdocumentscore_helper.pro CEF_SRC_PATH=$(pwd)/src/cef/linux $(pkg-config --cflags-only-I gtk+-3.0 |sed -e 's,-I,INCLUDEPATH+=,g') DEFINES+=_LINUX CONFIG+=core_linux QMAKE_CXXFLAGS_RELEASE-=-Werror=format-security
 make -j16
 cd -
 cd desktop-sdk/ChromiumBasedEditors/videoplayerlib

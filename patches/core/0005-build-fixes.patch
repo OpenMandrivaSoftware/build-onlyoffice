@@ -1,0 +1,81 @@
+diff -up core/DesktopEditor/cximage/jasper/jpc/jpc_qmfb.c.omv~ core/DesktopEditor/cximage/jasper/jpc/jpc_qmfb.c
+--- core/DesktopEditor/cximage/jasper/jpc/jpc_qmfb.c.omv~	2023-07-30 20:11:23.165831006 +0200
++++ core/DesktopEditor/cximage/jasper/jpc/jpc_qmfb.c	2023-07-30 20:13:44.207166312 +0200
+@@ -94,14 +94,14 @@
+ #define QMFB_SPLITBUFSIZE	4096
+ #define	QMFB_JOINBUFSIZE	4096
+ 
+-int jpc_ft_analyze(jpc_fix_t *a, int xstart, int ystart, int width, int height,
++int jpc_ft_analyze(int *a, int xstart, int ystart, int width, int height,
+   int stride);
+ int jpc_ft_synthesize(int *a, int xstart, int ystart, int width, int height,
+   int stride);
+ 
+-int jpc_ns_analyze(jpc_fix_t *a, int xstart, int ystart, int width, int height,
++int jpc_ns_analyze(int *a, int xstart, int ystart, int width, int height,
+   int stride);
+-int jpc_ns_synthesize(jpc_fix_t *a, int xstart, int ystart, int width,
++int jpc_ns_synthesize(int *a, int xstart, int ystart, int width,
+   int height, int stride);
+ 
+ void jpc_ft_fwdlift_row(jpc_fix_t *a, int numcols, int parity);
+@@ -1556,7 +1556,7 @@ void jpc_ft_invlift_colres(jpc_fix_t *a,
+ 
+ }
+ 
+-int jpc_ft_analyze(jpc_fix_t *a, int xstart, int ystart, int width, int height,
++int jpc_ft_analyze(int *a, int xstart, int ystart, int width, int height,
+   int stride)
+ {
+ 	int numrows = height;
+@@ -3068,7 +3068,7 @@ void jpc_ns_invlift_col(jpc_fix_t *a, in
+ 
+ }
+ 
+-int jpc_ns_analyze(jpc_fix_t *a, int xstart, int ystart, int width, int height,
++int jpc_ns_analyze(int *a, int xstart, int ystart, int width, int height,
+   int stride)
+ {
+ 
+@@ -3105,7 +3105,7 @@ int jpc_ns_analyze(jpc_fix_t *a, int xst
+ 
+ }
+ 
+-int jpc_ns_synthesize(jpc_fix_t *a, int xstart, int ystart, int width,
++int jpc_ns_synthesize(int *a, int xstart, int ystart, int width,
+   int height, int stride)
+ {
+ 
+diff -up core/OfficeUtils/src/zlib-1.2.11/gzlib.c.omv~ core/OfficeUtils/src/zlib-1.2.11/gzlib.c
+--- core/OfficeUtils/src/zlib-1.2.11/gzlib.c.omv~	2023-07-30 20:03:38.362381893 +0200
++++ core/OfficeUtils/src/zlib-1.2.11/gzlib.c	2023-07-30 20:03:44.412440505 +0200
+@@ -4,6 +4,7 @@
+  */
+ 
+ #include "gzguts.h"
++#include <unistd.h>
+ 
+ #if defined(_WIN32) && !defined(__BORLANDC__) && !defined(__MINGW32__)
+ #  define LSEEK _lseeki64
+diff -up core/OfficeUtils/src/zlib-1.2.11/gzread.c.omv~ core/OfficeUtils/src/zlib-1.2.11/gzread.c
+--- core/OfficeUtils/src/zlib-1.2.11/gzread.c.omv~	2023-07-30 20:01:54.214368824 +0200
++++ core/OfficeUtils/src/zlib-1.2.11/gzread.c	2023-07-30 20:01:59.905424397 +0200
+@@ -4,6 +4,7 @@
+  */
+ 
+ #include "gzguts.h"
++#include <unistd.h>
+ 
+ /* Local functions */
+ local int gz_load OF((gz_statep, unsigned char *, unsigned, unsigned *));
+diff -up core/OfficeUtils/src/zlib-1.2.11/gzwrite.c.omv~ core/OfficeUtils/src/zlib-1.2.11/gzwrite.c
+--- core/OfficeUtils/src/zlib-1.2.11/gzwrite.c.omv~	2023-07-30 19:59:57.804225793 +0200
++++ core/OfficeUtils/src/zlib-1.2.11/gzwrite.c	2023-07-30 20:01:20.485038902 +0200
+@@ -4,6 +4,7 @@
+  */
+ 
+ #include "gzguts.h"
++#include <unistd.h>
+ 
+ /* Local functions */
+ local int gz_init OF((gz_statep));

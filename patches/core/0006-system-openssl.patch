@@ -1,0 +1,20 @@
+diff -up core/Common/3dParty/curl/curl.pri.omv~ core/Common/3dParty/curl/curl.pri
+diff -up core/Common/3dParty/openssl/openssl.pri.omv~ core/Common/3dParty/openssl/openssl.pri
+--- core/Common/3dParty/openssl/openssl.pri.omv~	2023-07-30 20:18:19.887196050 +0200
++++ core/Common/3dParty/openssl/openssl.pri	2023-07-30 20:19:13.171839632 +0200
+@@ -37,6 +37,7 @@ core_ios {
+ 
+ }
+ 
++bundled_openssl {
+ core_windows {
+     LIBS += $$OPENSSL_LIBS_DIRECTORY/libssl.lib
+ 	LIBS += $$OPENSSL_LIBS_DIRECTORY/libcrypto.lib
+@@ -46,3 +47,7 @@ core_windows {
+ }
+ 
+ INCLUDEPATH += $$OPENSSL_LIBS_DIRECTORY/../include
++} else {
++    LIBS += -lssl -lcrypto
++    INCLUDEPATH += /usr/include/openssl
++}

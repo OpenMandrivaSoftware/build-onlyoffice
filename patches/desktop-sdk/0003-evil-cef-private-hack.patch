@@ -1,0 +1,24 @@
+diff -up desktop-sdk/ChromiumBasedEditors/lib/src/cefview.cpp.omv~ desktop-sdk/ChromiumBasedEditors/lib/src/cefview.cpp
+--- desktop-sdk/ChromiumBasedEditors/lib/src/cefview.cpp.omv~	2023-08-02 13:21:57.574153430 +0200
++++ desktop-sdk/ChromiumBasedEditors/lib/src/cefview.cpp	2023-08-02 13:23:22.078954023 +0200
+@@ -30,6 +30,8 @@
+  *
+  */
+ 
++#include <sstream> // must be included before #define private hack
++#define private protected // ugly hack to get access to message_router_ and friends
+ #include "include/cef_browser.h"
+ #include "include/base/cef_bind.h"
+ #include "include/base/cef_callback.h"
+diff -up desktop-sdk/ChromiumBasedEditors/lib/src/cefwrapper/client_app.h.omv~ desktop-sdk/ChromiumBasedEditors/lib/src/cefwrapper/client_app.h
+--- desktop-sdk/ChromiumBasedEditors/lib/src/cefwrapper/client_app.h.omv~	2023-08-02 13:19:18.153633321 +0200
++++ desktop-sdk/ChromiumBasedEditors/lib/src/cefwrapper/client_app.h	2023-08-02 13:20:43.198445999 +0200
+@@ -33,6 +33,8 @@
+ #ifndef CEF_ASC_CLIENT_APP_H_
+ #define CEF_ASC_CLIENT_APP_H_
+ 
++#define private protected // OnScheduleMessagePumpWork is private, but used here...
++
+ #ifndef CEF_2623
+ #include "tests/shared/common/client_app.h"
+ #else
