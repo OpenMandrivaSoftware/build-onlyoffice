@@ -17,13 +17,17 @@
 
 set -e
 
+if [ "$1" = "-w" ]; then
+	rm -rf core desktop-sdk desktop-apps sdkjs web-apps
+fi
+
 for i in core desktop-sdk desktop-apps sdkjs web-apps; do
 	if ! [ -d "$i" ]; then
 		git clone https://github.com/ONLYOFFICE/$i.git
 		if [ -d "patches/$i" ]; then
 			PN=1
 			for p in patches/$i/*; do
-				echo "=== Applying $(basename $p) in $i... ==="
+				echo "=== Applying $(basename $p) with backup .p${PN}~ in $i... ==="
 				cd $i
 				patch -p1 -b -z .p${PN}~ <../$p
 				cd ..
