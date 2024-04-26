@@ -24,6 +24,26 @@ fi
 for i in core desktop-sdk desktop-apps sdkjs web-apps; do
 	if ! [ -d "$i" ]; then
 		git clone https://github.com/ONLYOFFICE/$i.git
+		if [ "$i" = "core" ]; then
+			pushd core/Common/3dParty/html
+			# For details like exact commit ID requested, check fetch.py in this directory.
+			# Patches applied with sed are from fetch.py as well
+			git clone https://github.com/google/gumbo-parser.git
+			cd gumbo-parser
+			git checkout -b oo aa91b27b02c0c80c482e24348a457ed7c3c088e0
+			sed -i -e 's,isspace(*c),isspace((unsigned char)*c),g' src/tag.c
+			cd ..
+			git clone https://github.com/jasenhuang/katana-parser.git
+			cd katana-parser
+			git checkout -b oo be6df458d4540eee375c513958dcb862a391cdd1
+			sed -i -e 's|static inline bool katana_is_html_space(char c);|static inline bool2 katana_is_html_space(char c);|g' src/tokenizer.c
+			sed -i -e 's|inline bool katana_is_html_space(char c)|static inline bool katana_is_html_space(char c)|g' src/tokenizer.c
+			sed -i -e 's|static inline bool2 katana_is_html_space(char c);|static inline bool katana_is_html_space(char c);|g' src/tokenizer.c
+			sed -i -e 's|katanaget_text(parser->scanner)|/*katanaget_text(parser->scanner)*/\"error\"|g' src/parser.c
+			sed -i -e 's|#define KATANA_PARSER_STRING(literal) (KatanaParserString){|#define KATANA_PARSER_STRING(literal) {|g' src/parser.c
+			cd ..
+			popd
+		fi
 		if [ -d "patches/$i" ]; then
 			PN=1
 			for p in patches/$i/*; do
@@ -36,24 +56,6 @@ for i in core desktop-sdk desktop-apps sdkjs web-apps; do
 		fi
 	fi
 done
-pushd core/Common/3dParty/html
-# For details like exact commit ID requested, check fetch.py in this directory.
-# Patches applied with sed are from fetch.py as well
-git clone https://github.com/google/gumbo-parser.git
-cd gumbo-parser
-git checkout -b oo aa91b27b02c0c80c482e24348a457ed7c3c088e0
-sed -i -e 's,isspace(*c),isspace((unsigned char)*c),g' src/tag.c
-cd ..
-git clone https://github.com/jasenhuang/katana-parser.git
-cd katana-parser
-git checkout -b oo be6df458d4540eee375c513958dcb862a391cdd1
-sed -i -e 's|static inline bool katana_is_html_space(char c);|static inline bool2 katana_is_html_space(char c);|g' src/tokenizer.c
-sed -i -e 's|inline bool katana_is_html_space(char c)|static inline bool katana_is_html_space(char c)|g' src/tokenizer.c
-sed -i -e 's|static inline bool2 katana_is_html_space(char c);|static inline bool katana_is_html_space(char c);|g' src/tokenizer.c
-sed -i -e 's|katanaget_text(parser->scanner)|/*katanaget_text(parser->scanner)*/\"error\"|g' src/parser.c
-sed -i -e 's|#define KATANA_PARSER_STRING(literal) (KatanaParserString){|#define KATANA_PARSER_STRING(literal) {|g' src/parser.c
-cd ..
-popd
 
 cd core
 for i in UnicodeConverter/UnicodeConverter.pro Common/kernel.pro Common/Network/network.pro DesktopEditor/graphics/pro/graphics.pro HtmlRenderer/htmlrenderer.pro PdfFile/PdfFile.pro DjVuFile/DjVuFile.pro XpsFile/XpsFile.pro Common/cfcpp/cfcpp.pro OfficeCryptReader/ooxml_crypt/ooxml_crypt.pro DesktopEditor/xmlsec/src/ooxmlsignature.pro; do
