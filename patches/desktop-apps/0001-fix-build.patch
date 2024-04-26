@@ -23,3 +23,39 @@ diff -up desktop-apps/win-linux/src/components/ctabpanel.h.p1~ desktop-apps/win-
  #include "casctabdata.h"
  
  class CTabPanel : public QWidget
+diff -up desktop-apps/win-linux/src/cthemes.cpp.omv~ desktop-apps/win-linux/src/cthemes.cpp
+--- desktop-apps/win-linux/src/cthemes.cpp.omv~	2024-04-26 04:48:01.886828760 +0200
++++ desktop-apps/win-linux/src/cthemes.cpp	2024-04-26 04:48:34.559109726 +0200
+@@ -1,9 +1,5 @@
+ 
+ #include "cthemes.h"
+-#ifdef Q_OS_LINUX
+-# include <gio/gio.h>
+-# include <glib.h>
+-#endif
+ #include "defines.h"
+ #include "utils.h"
+ #include <QSettings>
+@@ -17,6 +13,11 @@
+ #include <QPalette>
+ #include <QApplication>
+ #include <QJsonArray>
++#ifdef Q_OS_LINUX
++#undef signals
++# include <gio/gio.h>
++# include <glib.h>
++#endif
+ 
+ #define QSTRING_FROM_WSTR(s) QString::fromStdWString(s)
+ #define REGISTRY_THEME_KEY "UITheme"
+diff -up desktop-apps/win-linux/src/windows/platform_linux/cwindowplatform.cpp.omv~ desktop-apps/win-linux/src/windows/platform_linux/cwindowplatform.cpp
+--- desktop-apps/win-linux/src/windows/platform_linux/cwindowplatform.cpp.omv~	2024-04-26 04:48:58.271313788 +0200
++++ desktop-apps/win-linux/src/windows/platform_linux/cwindowplatform.cpp	2024-04-26 04:49:05.047372123 +0200
+@@ -36,6 +36,7 @@
+ #include "utils.h"
+ #include <QTimer>
+ #include <QPainter>
++#include <QPainterPath>
+ #include <QX11Info>
+ #include <xcb/xcb.h>
+ 
