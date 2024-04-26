@@ -43,6 +43,10 @@ for i in core desktop-sdk desktop-apps sdkjs web-apps; do
 			sed -i -e 's|#define KATANA_PARSER_STRING(literal) (KatanaParserString){|#define KATANA_PARSER_STRING(literal) {|g' src/parser.c
 			cd ..
 			popd
+			# This seems to be required as well, but not retrieved anywhere
+			cd core/Common/3dParty/hyphen
+			git clone https://github.com/hunspell/hyphen.git
+			cd -
 		fi
 		if [ -d "patches/$i" ]; then
 			PN=1
