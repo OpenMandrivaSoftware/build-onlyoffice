@@ -1,0 +1,31 @@
+diff -up desktop-sdk/ChromiumBasedEditors/lib/src/cefwrapper/client_renderer_wrapper.cpp.omv~ desktop-sdk/ChromiumBasedEditors/lib/src/cefwrapper/client_renderer_wrapper.cpp
+--- desktop-sdk/ChromiumBasedEditors/lib/src/cefwrapper/client_renderer_wrapper.cpp.omv~	2025-03-16 22:41:34.698345143 +0100
++++ desktop-sdk/ChromiumBasedEditors/lib/src/cefwrapper/client_renderer_wrapper.cpp	2025-03-16 22:43:45.496594833 +0100
+@@ -1940,10 +1940,10 @@ if (main.DisableVersionHistory) main.Dis
+ 
+ 				std::wstring sRequestPath = arguments[0]->GetStringValue();
+ 
+-				boost::filesystem::wpath current_path = m_sLocalFileSrc;
+-				boost::filesystem::wpath request_path = sRequestPath;
++				boost::filesystem::path current_path = m_sLocalFileSrc;
++				boost::filesystem::path request_path = sRequestPath;
+ 
+-				boost::filesystem::wpath relativePath = boost::filesystem::relative(request_path, current_path.parent_path());
++				boost::filesystem::path relativePath = boost::filesystem::relative(request_path, current_path.parent_path());
+ 				std::wstring sRelativePath = relativePath.wstring();
+ 
+ 				if (sRelativePath.empty())
+@@ -4269,10 +4269,10 @@ window.AscDesktopEditor.CallInFrame(\""
+ 					if (!NSFileDownloader::IsNeedDownload(sRequestPath) &&
+ 						!NSFile::CFileBinary::Exists(sRequestPath))
+ 					{
+-						boost::filesystem::wpath current_path = m_sLocalFileSrc;
+-						boost::filesystem::wpath request_path = sRequestPath;
++						boost::filesystem::path current_path = m_sLocalFileSrc;
++						boost::filesystem::path request_path = sRequestPath;
+ 
+-						boost::filesystem::wpath absolute_path = boost::filesystem::absolute(request_path, current_path.parent_path());
++						boost::filesystem::path absolute_path = boost::filesystem::absolute(request_path, current_path.parent_path());
+ 						sRequestPath = absolute_path.wstring();
+ 
+ 						if (!NSFile::CFileBinary::Exists(sRequestPath))

@@ -22,8 +22,9 @@ if [ "$1" = "-w" ]; then
 fi
 
 for i in core desktop-sdk desktop-apps sdkjs web-apps; do
+	echo "=== Checking out $i ==="
 	if ! [ -d "$i" ]; then
-		git clone https://github.com/ONLYOFFICE/$i.git
+		git clone -b develop https://github.com/ONLYOFFICE/$i.git
 		if [ "$i" = "core" ]; then
 			pushd core/Common/3dParty/html
 			# For details like exact commit ID requested, check fetch.py in this directory.
@@ -51,6 +52,7 @@ for i in core desktop-sdk desktop-apps sdkjs web-apps; do
 		if [ -d "patches/$i" ]; then
 			PN=1
 			for p in patches/$i/*; do
+				[ -d $p ] && continue
 				echo "=== Applying $(basename $p) with backup .p${PN}~ in $i... ==="
 				cd $i
 				patch -p1 -b -z .p${PN}~ <../$p
@@ -62,11 +64,12 @@ for i in core desktop-sdk desktop-apps sdkjs web-apps; do
 done
 
 cd core
-for i in UnicodeConverter/UnicodeConverter.pro Common/kernel.pro Common/Network/network.pro DesktopEditor/graphics/pro/graphics.pro HtmlRenderer/htmlrenderer.pro PdfFile/PdfFile.pro DjVuFile/DjVuFile.pro XpsFile/XpsFile.pro Common/cfcpp/cfcpp.pro OfficeCryptReader/ooxml_crypt/ooxml_crypt.pro DesktopEditor/xmlsec/src/ooxmlsignature.pro; do
+for i in UnicodeConverter/UnicodeConverter.pro Common/kernel.pro Common/Network/network.pro DesktopEditor/graphics/pro/graphics.pro PdfFile/PdfFile.pro DjVuFile/DjVuFile.pro XpsFile/XpsFile.pro Common/cfcpp/cfcpp.pro OfficeCryptReader/ooxml_crypt/ooxml_crypt.pro DesktopEditor/xmlsec/src/ooxmlsignature.pro; do
+	echo "=== Building core/$(dirname $i) ==="
 	EXTRAOPTS=""
 	cd $(dirname $i)
 	[ "$(basename $i)" = graphics.pro ] && EXTRAOPTS="$(pkg-config --cflags-only-I harfbuzz |sed -e 's,-I[A-Za-z/]*freetype2,,' |sed -e 's,-I,INCLUDEPATH+=,g')"
-	qmake $(basename $i) DEFINES+=_LINUX CONFIG+=core_linux $EXTRAOPTS
+	qmake $(basename $i) DEFINES+=_LINUX CONFIG+=core_linux CONFIG+=c++2a $EXTRAOPTS
 	make -j16
 	cd -
 done
@@ -74,30 +77,35 @@ cd ..
 
 # Drop internal cef prebuilt binaries, and pull in ours
 # (correct architecture, ungoogled and no GTK dep)
-rm -rf desktop-sdk/ChromiumBasedEditors/lib/src/cef/linux
-mkdir -p desktop-sdk/ChromiumBasedEditors/lib/src/cef/linux
-cp -a /usr/lib64/cef/* desktop-sdk/ChromiumBasedEditors/lib/src/cef/linux/
-rm -rf core/Common/3dParty/cef
-mkdir -p core/Common/3dParty/cef/build
-ln -s /usr/lib64/cef/Release/libcef.so core/Common/3dParty/cef/build/
+#rm -rf desktop-sdk/ChromiumBasedEditors/lib/src/cef/linux
+#mkdir -p desktop-sdk/ChromiumBasedEditors/lib/src/cef/linux
+#cp -a /usr/lib64/cef/* desktop-sdk/ChromiumBasedEditors/lib/src/cef/linux/
+#rm -rf core/Common/3dParty/cef
+#mkdir -p core/Common/3dParty/cef/build
+#ln -s /usr/lib64/cef/Release/libcef.so core/Common/3dParty/cef/build/
 
+echo '=== Building ChromiumBasedEditors ==='
 cd desktop-sdk/ChromiumBasedEditors/lib
-qmake ascdocumentscore.pro CEF_SRC_PATH=$(pwd)/src/cef/linux $(pkg-config --cflags-only-I gtk+-3.0 |sed -e 's,-I,INCLUDEPATH+=,g') DEFINES+=_LINUX CONFIG+=core_linux QMAKE_CXXFLAGS_RELEASE-=-Werror=format-security
+qmake ascdocumentscore.pro CEF_SRC_PATH=$(pwd)/src/cef/linux CONFIG+=core_linux CONFIG+=c++2a $(pkg-config --cflags-only-I gtk+-3.0 |sed -e 's,-I,INCLUDEPATH+=,g') DEFINES+=_LINUX CONFIG+=core_linux QMAKE_CXXFLAGS_RELEASE-=-Werror=format-security
 make -j16
-qmake ascdocumentscore_helper.pro CEF_SRC_PATH=$(pwd)/src/cef/linux $(pkg-config --cflags-only-I gtk+-3.0 |sed -e 's,-I,INCLUDEPATH+=,g') DEFINES+=_LINUX CONFIG+=core_linux QMAKE_CXXFLAGS_RELEASE-=-Werror=format-security
+
+echo '=== Building ascdocumentscore_helpers ==='
+qmake ascdocumentscore_helper.pro CEF_SRC_PATH=$(pwd)/src/cef/linux CONFIG+=core_linux CONFIG+=c++2a $(pkg-config --cflags-only-I gtk+-3.0 |sed -e 's,-I,INCLUDEPATH+=,g') DEFINES+=_LINUX CONFIG+=core_linux QMAKE_CXXFLAGS_RELEASE-=-Werror=format-security
 make -j16
 cd -
 cd desktop-sdk/ChromiumBasedEditors/videoplayerlib
-qmake videoplayerlib.pro DEFINES+=_LINUX CONFIG+=core_linux
+qmake videoplayerlib.pro DEFINES+=_LINUX CONFIG+=core_linux CONFIG+=c++2a
 make -j16
 cd -
 cd desktop-sdk/ChromiumBasedEditors/lib/qt_wrapper
-qmake qtascdocumentscore.pro DEFINES+=_LINUX CONFIG+=core_linux
+qmake qtascdocumentscore.pro DEFINES+=_LINUX CONFIG+=core_linux CONFIG+=c++2a
 make -j16
 cd -
 
 
 cd desktop-apps/win-linux
-qmake ASCDocumentEditor.pro DEFINES+=_LINUX CONFIG+=core_linux $(pkg-config --cflags-only-I glib-2.0 |sed -e 's,-I,INCLUDEPATH+=,g')
+qmake ASCDocumentEditor.pro DEFINES+=_LINUX CONFIG+=core_linux CONFIG+=c++2a $(pkg-config --cflags-only-I glib-2.0 |sed -e 's,-I,INCLUDEPATH+=,g')
 make -j16
 cd ../..
+
+echo '=== DONE ==='

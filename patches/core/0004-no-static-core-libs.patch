@@ -1,6 +1,6 @@
 diff -up core/Common/base.pri.p4~ core/Common/base.pri
---- core/Common/base.pri.p4~	2024-04-26 01:37:12.252978305 +0200
-+++ core/Common/base.pri	2024-04-26 01:37:33.533194102 +0200
+--- core/Common/base.pri.p4~	2025-03-16 22:03:04.428737168 +0100
++++ core/Common/base.pri	2025-03-16 22:03:08.214794931 +0100
 @@ -245,11 +245,6 @@ core_linux {
  	}
  }
@@ -14,8 +14,8 @@ diff -up core/Common/base.pri.p4~ core/Common/base.pri
  	CORE_BUILDS_PLATFORM_PREFIX = win_32
  }
 diff -up core/DesktopEditor/doctrenderer/js_internal/v8/inspector/inspector.pro.p4~ core/DesktopEditor/doctrenderer/js_internal/v8/inspector/inspector.pro
---- core/DesktopEditor/doctrenderer/js_internal/v8/inspector/inspector.pro.p4~	2024-04-26 01:38:12.949593767 +0200
-+++ core/DesktopEditor/doctrenderer/js_internal/v8/inspector/inspector.pro	2024-04-26 01:38:16.789632700 +0200
+--- core/DesktopEditor/doctrenderer/js_internal/v8/inspector/inspector.pro.p4~	2025-03-16 22:03:04.523520507 +0100
++++ core/DesktopEditor/doctrenderer/js_internal/v8/inspector/inspector.pro	2025-03-16 22:03:08.214916149 +0100
 @@ -7,8 +7,6 @@ CONFIG   -= app_bundle
  
  TEMPLATE = app
@@ -26,8 +26,8 @@ diff -up core/DesktopEditor/doctrenderer/js_internal/v8/inspector/inspector.pro.
  PWD_ROOT_DIR = $$PWD
  
 diff -up core/DesktopEditor/doctrenderer/test/embed/external/test.pro.p4~ core/DesktopEditor/doctrenderer/test/embed/external/test.pro
---- core/DesktopEditor/doctrenderer/test/embed/external/test.pro.p4~	2024-04-26 01:38:26.177727882 +0200
-+++ core/DesktopEditor/doctrenderer/test/embed/external/test.pro	2024-04-26 01:38:27.893745279 +0200
+--- core/DesktopEditor/doctrenderer/test/embed/external/test.pro.p4~	2025-03-16 22:03:04.524962036 +0100
++++ core/DesktopEditor/doctrenderer/test/embed/external/test.pro	2025-03-16 22:03:08.214998535 +0100
 @@ -7,8 +7,6 @@ CONFIG   -= app_bundle
  
  TEMPLATE = app
@@ -38,8 +38,8 @@ diff -up core/DesktopEditor/doctrenderer/test/embed/external/test.pro.p4~ core/D
  PWD_ROOT_DIR = $$PWD
  
 diff -up core/DesktopEditor/doctrenderer/test/embed/internal/hash/test.pro.p4~ core/DesktopEditor/doctrenderer/test/embed/internal/hash/test.pro
---- core/DesktopEditor/doctrenderer/test/embed/internal/hash/test.pro.p4~	2024-04-26 01:38:34.025807448 +0200
-+++ core/DesktopEditor/doctrenderer/test/embed/internal/hash/test.pro	2024-04-26 01:38:36.253830035 +0200
+--- core/DesktopEditor/doctrenderer/test/embed/internal/hash/test.pro.p4~	2025-03-16 22:03:04.525307818 +0100
++++ core/DesktopEditor/doctrenderer/test/embed/internal/hash/test.pro	2025-03-16 22:03:08.215067435 +0100
 @@ -7,8 +7,6 @@ CONFIG   -= app_bundle
  
  TEMPLATE = app
@@ -50,8 +50,8 @@ diff -up core/DesktopEditor/doctrenderer/test/embed/internal/hash/test.pro.p4~ c
  CORE_3DPARTY_DIR = $$CORE_ROOT_DIR/Common/3dParty
  PWD_ROOT_DIR = $$PWD
 diff -up core/DesktopEditor/doctrenderer/test/js_internal/test.pro.p4~ core/DesktopEditor/doctrenderer/test/js_internal/test.pro
---- core/DesktopEditor/doctrenderer/test/js_internal/test.pro.p4~	2024-04-26 01:38:43.457903070 +0200
-+++ core/DesktopEditor/doctrenderer/test/js_internal/test.pro	2024-04-26 01:38:45.461923386 +0200
+--- core/DesktopEditor/doctrenderer/test/js_internal/test.pro.p4~	2025-03-16 22:03:04.525413859 +0100
++++ core/DesktopEditor/doctrenderer/test/js_internal/test.pro	2025-03-16 22:03:08.215135643 +0100
 @@ -7,8 +7,6 @@ CONFIG	-= app_bundle
  
  TEMPLATE = app
@@ -62,8 +62,8 @@ diff -up core/DesktopEditor/doctrenderer/test/js_internal/test.pro.p4~ core/Desk
  CORE_3DPARTY_DIR = $$CORE_ROOT_DIR/Common/3dParty
  PWD_ROOT_DIR = $$PWD
 diff -up core/DesktopEditor/doctrenderer/test/json/test.pro.p4~ core/DesktopEditor/doctrenderer/test/json/test.pro
---- core/DesktopEditor/doctrenderer/test/json/test.pro.p4~	2024-04-26 01:38:54.030010246 +0200
-+++ core/DesktopEditor/doctrenderer/test/json/test.pro	2024-04-26 01:38:55.970029915 +0200
+--- core/DesktopEditor/doctrenderer/test/json/test.pro.p4~	2025-03-16 22:03:04.525555696 +0100
++++ core/DesktopEditor/doctrenderer/test/json/test.pro	2025-03-16 22:03:08.215196558 +0100
 @@ -7,8 +7,6 @@ CONFIG	-= app_bundle
  
  TEMPLATE = app
@@ -73,15 +73,14 @@ diff -up core/DesktopEditor/doctrenderer/test/json/test.pro.p4~ core/DesktopEdit
  CORE_ROOT_DIR = $$PWD/../../../../../core
  CORE_3DPARTY_DIR = $$CORE_ROOT_DIR/Common/3dParty
  PWD_ROOT_DIR = $$PWD
-diff -up core/OdfFile/Test/test_odf.pro.p4~ core/OdfFile/Test/test_odf.pro
---- core/OdfFile/Test/test_odf.pro.p4~	2024-04-26 01:39:04.510116487 +0200
-+++ core/OdfFile/Test/test_odf.pro	2024-04-26 01:39:06.582137491 +0200
-@@ -7,8 +7,6 @@ CONFIG   -= app_bundle
- 
- TEMPLATE = app
+diff -up core/OdfFile/Test/test_odf/test_odf.pro.p4~ core/OdfFile/Test/test_odf/test_odf.pro
+--- core/OdfFile/Test/test_odf/test_odf.pro.p4~	2025-03-16 22:03:08.215292479 +0100
++++ core/OdfFile/Test/test_odf/test_odf.pro	2025-03-16 22:05:33.545850066 +0100
+@@ -7,7 +7,6 @@ TARGET = test_odf
+ CONFIG   += console
+ CONFIG   -= app_bundle
  
 -CONFIG += core_static_link_libstd
--
- CORE_ROOT_DIR = $$PWD/../../../core
- CORE_3DPARTY_DIR = $$CORE_ROOT_DIR/Common/3dParty
- PWD_ROOT_DIR = $$PWD
+ CONFIG += build_x2t_as_library
+ 
+ CORE_ROOT_DIR = $$PWD/../../../../core

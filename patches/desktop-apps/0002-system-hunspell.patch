@@ -1,12 +1,12 @@
 diff -up desktop-apps/win-linux/defaults.pri.p2~ desktop-apps/win-linux/defaults.pri
---- desktop-apps/win-linux/defaults.pri.p2~	2024-04-26 01:43:34.640853848 +0200
-+++ desktop-apps/win-linux/defaults.pri	2024-04-26 01:44:07.665188388 +0200
-@@ -186,7 +186,7 @@ PLATFORM_BUILD=$$CORE_BUILDS_PLATFORM_PR
+--- desktop-apps/win-linux/defaults.pri.p2~	2025-03-15 19:48:57.973595262 +0100
++++ desktop-apps/win-linux/defaults.pri	2025-03-15 19:49:23.740447219 +0100
+@@ -187,7 +187,7 @@ PLATFORM_BUILD=$$CORE_BUILDS_PLATFORM_PR
  
  core_linux:LIBS += -Wl,-unresolved-symbols=ignore-in-shared-libs
  
--ADD_DEPENDENCY(PdfFile, DjVuFile, XpsFile, HtmlRenderer, UnicodeConverter, hunspell, ooxmlsignature, kernel, kernel_network, graphics, ascdocumentscore, qtascdocumentscore)
-+ADD_DEPENDENCY(PdfFile, DjVuFile, XpsFile, HtmlRenderer, UnicodeConverter, hunspell-1.7, ooxmlsignature, kernel, kernel_network, graphics, ascdocumentscore, qtascdocumentscore)
+-ADD_DEPENDENCY(PdfFile, DjVuFile, XpsFile, UnicodeConverter, hunspell, ooxmlsignature, kernel, kernel_network, graphics, ascdocumentscore, qtascdocumentscore)
++ADD_DEPENDENCY(PdfFile, DjVuFile, XpsFile, UnicodeConverter, hunspell-1.7, ooxmlsignature, kernel, kernel_network, graphics, ascdocumentscore, qtascdocumentscore)
  include($$CORE_ROOT_DIR/../desktop-sdk/ChromiumBasedEditors/videoplayerlib/videoplayerlib_deps.pri)
  
  core_linux {

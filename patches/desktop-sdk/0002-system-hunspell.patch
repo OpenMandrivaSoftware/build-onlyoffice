@@ -1,17 +1,15 @@
 diff -up desktop-sdk/ChromiumBasedEditors/lib/ascdocumentscore.pri.p2~ desktop-sdk/ChromiumBasedEditors/lib/ascdocumentscore.pri
---- desktop-sdk/ChromiumBasedEditors/lib/ascdocumentscore.pri.p2~	2023-07-30 19:50:56.181654684 +0200
-+++ desktop-sdk/ChromiumBasedEditors/lib/ascdocumentscore.pri	2023-07-30 19:52:25.878618338 +0200
-@@ -160,4 +160,4 @@ core_linux {
-     QMAKE_LFLAGS += -Wl,--disable-new-dtags
+--- desktop-sdk/ChromiumBasedEditors/lib/ascdocumentscore.pri.p2~	2025-03-15 19:46:33.371161456 +0100
++++ desktop-sdk/ChromiumBasedEditors/lib/ascdocumentscore.pri	2025-03-15 19:48:06.155733493 +0100
+@@ -179,4 +179,4 @@ core_linux {
+     LIBS += -lX11 -lX11-xcb -lxkbcommon-x11 -lxkbcommon
  }
  
--ADD_DEPENDENCY(graphics, kernel, UnicodeConverter, kernel_network, PdfFile, XpsFile, DjVuFile, HtmlRenderer, hunspell, ooxmlsignature)
-+ADD_DEPENDENCY(graphics, kernel, UnicodeConverter, kernel_network, PdfFile, XpsFile, DjVuFile, HtmlRenderer, hunspell-1.7, ooxmlsignature)
-diff -up desktop-sdk/ChromiumBasedEditors/lib/ascdocumentscore_helper.pro.p2~ desktop-sdk/ChromiumBasedEditors/lib/ascdocumentscore_helper.pro
-diff -up desktop-sdk/ChromiumBasedEditors/lib/qt_wrapper/qtascdocumentscore.pro.p2~ desktop-sdk/ChromiumBasedEditors/lib/qt_wrapper/qtascdocumentscore.pro
+-ADD_DEPENDENCY(graphics, kernel, UnicodeConverter, kernel_network, PdfFile, XpsFile, DjVuFile, hunspell, ooxmlsignature)
++ADD_DEPENDENCY(graphics, kernel, UnicodeConverter, kernel_network, PdfFile, XpsFile, DjVuFile, hunspell-1.7, ooxmlsignature)
 diff -up desktop-sdk/ChromiumBasedEditors/lib/src/spellchecker.cpp.p2~ desktop-sdk/ChromiumBasedEditors/lib/src/spellchecker.cpp
---- desktop-sdk/ChromiumBasedEditors/lib/src/spellchecker.cpp.p2~	2023-07-30 19:50:55.746649956 +0200
-+++ desktop-sdk/ChromiumBasedEditors/lib/src/spellchecker.cpp	2023-07-30 19:50:56.181654684 +0200
+--- desktop-sdk/ChromiumBasedEditors/lib/src/spellchecker.cpp.p2~	2025-03-15 19:46:33.327663546 +0100
++++ desktop-sdk/ChromiumBasedEditors/lib/src/spellchecker.cpp	2025-03-15 19:46:33.371422018 +0100
 @@ -33,7 +33,7 @@
  #include "../src/applicationmanager_p.h"
  #include <map>
