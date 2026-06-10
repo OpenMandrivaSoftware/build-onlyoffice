@@ -1,15 +1,15 @@
 diff -up desktop-sdk/ChromiumBasedEditors/lib/ascdocumentscore.pri.p2~ desktop-sdk/ChromiumBasedEditors/lib/ascdocumentscore.pri
---- desktop-sdk/ChromiumBasedEditors/lib/ascdocumentscore.pri.p2~	2025-03-15 19:46:33.371161456 +0100
-+++ desktop-sdk/ChromiumBasedEditors/lib/ascdocumentscore.pri	2025-03-15 19:48:06.155733493 +0100
-@@ -179,4 +179,4 @@ core_linux {
+--- desktop-sdk/ChromiumBasedEditors/lib/ascdocumentscore.pri.p2~	2026-02-15 22:53:42.536509122 +0100
++++ desktop-sdk/ChromiumBasedEditors/lib/ascdocumentscore.pri	2026-02-15 22:54:26.211490849 +0100
+@@ -245,4 +245,4 @@ core_linux {
      LIBS += -lX11 -lX11-xcb -lxkbcommon-x11 -lxkbcommon
  }
  
--ADD_DEPENDENCY(graphics, kernel, UnicodeConverter, kernel_network, PdfFile, XpsFile, DjVuFile, hunspell, ooxmlsignature)
-+ADD_DEPENDENCY(graphics, kernel, UnicodeConverter, kernel_network, PdfFile, XpsFile, DjVuFile, hunspell-1.7, ooxmlsignature)
+-ADD_DEPENDENCY(graphics, kernel, UnicodeConverter, kernel_network, PdfFile, XpsFile, DjVuFile, hunspell, ooxmlsignature, doctrenderer)
++ADD_DEPENDENCY(graphics, kernel, UnicodeConverter, kernel_network, PdfFile, XpsFile, DjVuFile, hunspell-1.7, ooxmlsignature, doctrenderer)
 diff -up desktop-sdk/ChromiumBasedEditors/lib/src/spellchecker.cpp.p2~ desktop-sdk/ChromiumBasedEditors/lib/src/spellchecker.cpp
---- desktop-sdk/ChromiumBasedEditors/lib/src/spellchecker.cpp.p2~	2025-03-15 19:46:33.327663546 +0100
-+++ desktop-sdk/ChromiumBasedEditors/lib/src/spellchecker.cpp	2025-03-15 19:46:33.371422018 +0100
+--- desktop-sdk/ChromiumBasedEditors/lib/src/spellchecker.cpp.p2~	2026-02-15 22:53:42.492251495 +0100
++++ desktop-sdk/ChromiumBasedEditors/lib/src/spellchecker.cpp	2026-02-15 22:53:42.538004041 +0100
 @@ -33,7 +33,7 @@
  #include "../src/applicationmanager_p.h"
  #include <map>

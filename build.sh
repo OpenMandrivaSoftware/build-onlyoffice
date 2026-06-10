@@ -17,6 +17,8 @@
 
 set -e
 
+which qmake || export PATH=$PATH:/usr/lib64/qt6/bin
+
 if [ "$1" = "-w" ]; then
 	rm -rf core desktop-sdk desktop-apps sdkjs web-apps
 fi
@@ -64,7 +66,7 @@ for i in core desktop-sdk desktop-apps sdkjs web-apps; do
 done
 
 cd core
-for i in UnicodeConverter/UnicodeConverter.pro Common/kernel.pro Common/Network/network.pro DesktopEditor/graphics/pro/graphics.pro PdfFile/PdfFile.pro DjVuFile/DjVuFile.pro XpsFile/XpsFile.pro Common/cfcpp/cfcpp.pro OfficeCryptReader/ooxml_crypt/ooxml_crypt.pro DesktopEditor/xmlsec/src/ooxmlsignature.pro; do
+for i in UnicodeConverter/UnicodeConverter.pro Common/kernel.pro Common/Network/network.pro DesktopEditor/graphics/pro/graphics.pro PdfFile/PdfFile.pro DjVuFile/DjVuFile.pro XpsFile/XpsFile.pro Common/cfcpp/cfcpp.pro OfficeCryptReader/ooxml_crypt/ooxml_crypt.pro DesktopEditor/xmlsec/src/ooxmlsignature.pro DesktopEditor/doctrenderer/doctrenderer.pro; do
 	echo "=== Building core/$(dirname $i) ==="
 	EXTRAOPTS=""
 	cd $(dirname $i)

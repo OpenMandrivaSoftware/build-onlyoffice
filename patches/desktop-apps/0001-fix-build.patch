@@ -1,9 +1,9 @@
 diff -up desktop-apps/win-linux/ASCDocumentEditor.pro.p1~ desktop-apps/win-linux/ASCDocumentEditor.pro
---- desktop-apps/win-linux/ASCDocumentEditor.pro.p1~	2024-04-26 01:40:42.415108818 +0200
-+++ desktop-apps/win-linux/ASCDocumentEditor.pro	2024-04-26 01:40:42.555110237 +0200
-@@ -47,6 +47,9 @@ message($$PLATFORM_BUILD)
- updmodule:core_linux {
-     SOURCES += $$PWD/res/gtk_resources.c
+--- desktop-apps/win-linux/ASCDocumentEditor.pro.p1~	2026-02-15 22:55:27.679893577 +0100
++++ desktop-apps/win-linux/ASCDocumentEditor.pro	2026-02-15 22:55:27.753173162 +0100
+@@ -45,6 +45,9 @@ core_linux {
+     glib_resources.variable_out = SOURCES
+     QMAKE_EXTRA_COMPILERS += glib_resources
  }
 +linux {
 +    QT += x11extras
@@ -11,10 +11,9 @@ diff -up desktop-apps/win-linux/ASCDocumentEditor.pro.p1~ desktop-apps/win-linux
  
  HEADERS += \
      src/prop/cmainwindowimpl.h
-diff -up desktop-apps/win-linux/src/components/asctabwidget.h.p1~ desktop-apps/win-linux/src/components/asctabwidget.h
 diff -up desktop-apps/win-linux/src/components/ctabpanel.h.p1~ desktop-apps/win-linux/src/components/ctabpanel.h
---- desktop-apps/win-linux/src/components/ctabpanel.h.p1~	2024-04-26 01:40:42.495109628 +0200
-+++ desktop-apps/win-linux/src/components/ctabpanel.h	2024-04-26 01:40:42.555110237 +0200
+--- desktop-apps/win-linux/src/components/ctabpanel.h.p1~	2026-02-15 22:55:27.697426064 +0100
++++ desktop-apps/win-linux/src/components/ctabpanel.h	2026-02-15 22:55:27.753268864 +0100
 @@ -4,7 +4,6 @@
  #include <QWidget>
  #include <QTimer>
@@ -23,20 +22,19 @@ diff -up desktop-apps/win-linux/src/components/ctabpanel.h.p1~ desktop-apps/win-
  #include "casctabdata.h"
  
  class CTabPanel : public QWidget
-diff -up desktop-apps/win-linux/src/cthemes.cpp.omv~ desktop-apps/win-linux/src/cthemes.cpp
---- desktop-apps/win-linux/src/cthemes.cpp.omv~	2024-04-26 04:48:01.886828760 +0200
-+++ desktop-apps/win-linux/src/cthemes.cpp	2024-04-26 04:48:34.559109726 +0200
-@@ -1,9 +1,5 @@
- 
+diff -up desktop-apps/win-linux/src/cthemes.cpp.p1~ desktop-apps/win-linux/src/cthemes.cpp
+--- desktop-apps/win-linux/src/cthemes.cpp.p1~	2026-02-15 22:55:27.697426064 +0100
++++ desktop-apps/win-linux/src/cthemes.cpp	2026-02-15 22:56:25.422184817 +0100
+@@ -2,8 +2,6 @@
  #include "cthemes.h"
--#ifdef Q_OS_LINUX
+ #ifdef Q_OS_LINUX
+ # include <gtk/gtk.h>
 -# include <gio/gio.h>
 -# include <glib.h>
--#endif
+ #endif
  #include "defines.h"
  #include "utils.h"
- #include <QSettings>
-@@ -17,6 +13,11 @@
+@@ -18,6 +16,11 @@
  #include <QPalette>
  #include <QApplication>
  #include <QJsonArray>
@@ -48,9 +46,9 @@ diff -up desktop-apps/win-linux/src/cthemes.cpp.omv~ desktop-apps/win-linux/src/
  
  #define QSTRING_FROM_WSTR(s) QString::fromStdWString(s)
  #define REGISTRY_THEME_KEY "UITheme"
-diff -up desktop-apps/win-linux/src/windows/platform_linux/cwindowplatform.cpp.omv~ desktop-apps/win-linux/src/windows/platform_linux/cwindowplatform.cpp
---- desktop-apps/win-linux/src/windows/platform_linux/cwindowplatform.cpp.omv~	2024-04-26 04:48:58.271313788 +0200
-+++ desktop-apps/win-linux/src/windows/platform_linux/cwindowplatform.cpp	2024-04-26 04:49:05.047372123 +0200
+diff -up desktop-apps/win-linux/src/windows/platform_linux/cwindowplatform.cpp.p1~ desktop-apps/win-linux/src/windows/platform_linux/cwindowplatform.cpp
+--- desktop-apps/win-linux/src/windows/platform_linux/cwindowplatform.cpp.p1~	2026-02-15 22:55:27.700613913 +0100
++++ desktop-apps/win-linux/src/windows/platform_linux/cwindowplatform.cpp	2026-02-15 22:55:27.753518727 +0100
 @@ -36,6 +36,7 @@
  #include "utils.h"
  #include <QTimer>

@@ -1,0 +1,10 @@
+diff -up core/DesktopEditor/raster/heif/heif.h.omv~ core/DesktopEditor/raster/heif/heif.h
+--- core/DesktopEditor/raster/heif/heif.h.omv~	2026-02-15 23:10:44.811049199 +0100
++++ core/DesktopEditor/raster/heif/heif.h	2026-02-15 23:10:58.317409708 +0100
+@@ -1,5 +1,5 @@
+ #include "../BgraFrame.h"
+-#include "../../Common/3dParty/heif/libheif/libheif/api/libheif/heif.h"
++#include <libheif/heif.h>
+ #include "../../UnicodeConverter/UnicodeConverter.h"
+ 
+ namespace NSHeif {
