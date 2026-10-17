@@ -1,0 +1,107 @@
+--- a/OfficeUtils/OfficeUtils.pri
++++ b/OfficeUtils/OfficeUtils.pri
+@@ -44,16 +44,22 @@
+ }
+ 
+ INCLUDEPATH += \
+-    $$PWD/src/zlib-1.2.11/contrib/minizip \
+     $$PWD/src
+ 
+-# Keep the bundled minizip and zlib_addon.c. Linux links system zlib instead
+-# of compiling zlib 1.2.11. The 1.2.11 directory must stay off the include
+-# path, or <zlib.h> / "zlib.h" still resolve to the bundled header.
++# Linux links system zlib and system minizip-ng through the classic compat
++# API (pkg-config name minizip). ioapibuf.c is OnlyOffice's in-memory zip
++# backend and stays on every platform. zlib_addon.c stays because
++# OfficeUtils calls it directly. The 1.2.11 tree must stay off the Linux
++# include path: <zlib.h>, "ioapi.h", "unzip.h" and "zip.h" would otherwise
++# still resolve to the bundled copies. Other platforms compile that tree.
+ unix:!mac:!android {
++    CONFIG += link_pkgconfig
++    PKGCONFIG += minizip
+     LIBS += -lz
+ } else {
+-    INCLUDEPATH += $$PWD/src/zlib-1.2.11
++    INCLUDEPATH += \
++        $$PWD/src/zlib-1.2.11/contrib/minizip \
++        $$PWD/src/zlib-1.2.11
+ }
+ 
+ SOURCES +=  \
+@@ -61,13 +67,16 @@
+     $$PWD/src/ZipBuffer.cpp \
+     $$PWD/src/ZipUtilsCP.cpp \
+     $$PWD/src/zlib_addon.c \
++    $$PWD/src/zlib-1.2.11/contrib/minizip/ioapibuf.c
++!unix|mac|android {
++SOURCES +=  \
+     $$PWD/src/zlib-1.2.11/contrib/minizip/ioapi.c \
+     $$PWD/src/zlib-1.2.11/contrib/minizip/miniunz.c \
+     $$PWD/src/zlib-1.2.11/contrib/minizip/minizip.c \
+     $$PWD/src/zlib-1.2.11/contrib/minizip/mztools.c \
+     $$PWD/src/zlib-1.2.11/contrib/minizip/unzip.c \
+-    $$PWD/src/zlib-1.2.11/contrib/minizip/zip.c \
+-    $$PWD/src/zlib-1.2.11/contrib/minizip/ioapibuf.c
++    $$PWD/src/zlib-1.2.11/contrib/minizip/zip.c
++}
+ core_windows {
+ SOURCES +=  \
+     $$PWD/src/zlib-1.2.11/contrib/minizip/iowin32.c
+@@ -100,10 +109,13 @@
+     $$PWD/src/ZipFolder.h \
+     $$PWD/src/ZipUtilsCP.h \
+     $$PWD/src/zlib_addon.h \
++    $$PWD/src/zlib-1.2.11/contrib/minizip/ioapibuf.h
++!unix|mac|android {
++HEADERS +=  \
+     $$PWD/src/zlib-1.2.11/contrib/minizip/crypt.h \
+     $$PWD/src/zlib-1.2.11/contrib/minizip/ioapi.h \
+     $$PWD/src/zlib-1.2.11/contrib/minizip/mztools.h \
+     $$PWD/src/zlib-1.2.11/contrib/minizip/unzip.h \
+-    $$PWD/src/zlib-1.2.11/contrib/minizip/zip.h \
+-    $$PWD/src/zlib-1.2.11/contrib/minizip/ioapibuf.h
++    $$PWD/src/zlib-1.2.11/contrib/minizip/zip.h
++}
+ 
+--- a/OfficeUtils/src/ZipUtilsCP.h
++++ b/OfficeUtils/src/ZipUtilsCP.h
+@@ -50,8 +50,16 @@
+ 
+ using namespace std;
+ 
++#ifdef _LINUX
++/* zlib.h first. minizip-ng's unzip.h/zip.h include <zlib-ng.h> unless a
++   zlib include guard is already set, and the two headers cannot mix. */
++#include <zlib.h>
++#include <unzip.h>
++#include <zip.h>
++#else
+ #include "zlib-1.2.11/contrib/minizip/unzip.h"
+ #include "zlib-1.2.11/contrib/minizip/zip.h"
++#endif
+ #include "zlib-1.2.11/contrib/minizip/ioapibuf.h"
+ #if defined(_WIN32) || defined (_WIN64)
+ #include "zlib-1.2.11/contrib/minizip/iowin32.h"
+--- a/OfficeUtils/src/zlib-1.2.11/contrib/minizip/ioapibuf.h
++++ b/OfficeUtils/src/zlib-1.2.11/contrib/minizip/ioapibuf.h
+@@ -1,11 +1,19 @@
++#include <stdlib.h>
+ #include <string.h>
+ 
++/* zlib-ng's compat zlib.h no longer defines the K&R OF() macro. */
++#ifndef OF
++#define OF(args) args
++#endif
++
+ #ifdef _LINUX
+ #include <zlib.h>
++/* Angle brackets: "ioapi.h" would pick the bundled header beside this file. */
++#include <ioapi.h>
+ #else
+ #include "../../zlib.h"
+-#endif
+ #include "ioapi.h"
++#endif
+ 
+ #ifdef __cplusplus
+ extern "C" {

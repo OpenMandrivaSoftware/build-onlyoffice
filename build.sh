@@ -1,7 +1,9 @@
 #!/bin/sh
 
 # FIXME Even once it starts up, some stuff needs to be fixed:
-# * Internal copy of outdated zlib at core/OfficeUtils/src/zlib-1.2.11
+# * The zlib 1.2.11 tree is still in the checkout. Linux links system zlib
+#   and minizip-ng and does not compile that tree's minizip, except
+#   ioapibuf.c (in-memory zip backend). Other platforms still compile it.
 # * FreeType source trees are still in the checkout (2.5.2, 2.5.3, 2.10.4)
 #   but Linux links system libfreetype and does not compile them.
 # * Internal copy of agg core/DesktopEditor/agg-2.4
