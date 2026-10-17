@@ -1,0 +1,25 @@
+diff --git a/apps/api/documents/api.js b/apps/api/documents/api.js
+index df50980306..cf64bfa159 100644
+--- a/apps/api/documents/api.js
++++ b/apps/api/documents/api.js
+@@ -1013,8 +1013,18 @@
+         };
+ 
+         var _onMessage = function(msg) {
+-            // TODO: check message origin
+-            if (msg && window.JSON && _scope.frameOrigin==msg.origin ) {
++            // file:// pages have an opaque origin. Chromium reports that as
++            // the string "null", while frameOrigin parsed from the iframe URL
++            // is "file://". Without this, the desktop editor never hears
++            // onAppReady and never sends openDocument.
++            var originOk = false;
++            if (msg) {
++                originOk = (_scope.frameOrigin == msg.origin);
++                if (!originOk && msg.origin === "null" &&
++                    (_scope.frameOrigin === "file://" || _scope.frameOrigin === "null"))
++                    originOk = true;
++            }
++            if (msg && window.JSON && originOk) {
+                 if (msg.data && msg.data.event === 'onSaveDocument') {
+                     if (_fn) {
+                         _fn.call(_scope, msg.data);

@@ -1,0 +1,19 @@
+diff --git a/DocxRenderer/src/logic/Page.h b/DocxRenderer/src/logic/Page.h
+index 27002443d2..9a0838956a 100644
+--- a/DocxRenderer/src/logic/Page.h
++++ b/DocxRenderer/src/logic/Page.h
+@@ -48,12 +48,10 @@ namespace NSDocxRenderer
+ 	class CPage
+ 	{
+ 	public:
++		// No user-declared constructors: C++20 would otherwise stop this
++		// being an aggregate, and Document.cpp brace-initializes it.
+ 		struct CManagers
+ 		{
+-			CManagers() = default;
+-			CManagers(const CManagers& other) = default;
+-			~CManagers() = default;
+-
+ 			CImageManager*          pImageManager;
+ 			CFontStyleManager*      pFontStyleManager;
+ 			CParagraphStyleManager* pParagraphStyleManager;

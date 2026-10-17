@@ -1,0 +1,251 @@
+diff --git a/DesktopEditor/doctrenderer/hash.cpp b/DesktopEditor/doctrenderer/hash.cpp
+index 2319ee8742..8068ea0b7e 100644
+--- a/DesktopEditor/doctrenderer/hash.cpp
++++ b/DesktopEditor/doctrenderer/hash.cpp
+@@ -72,6 +72,7 @@ unsigned char* CHash::hash(const unsigned char* data, int size, int alg)
+ 
+ 	switch (alg)
+ 	{
++#ifndef OPENSSL_NO_MD2
+ 	case haMD2:
+ 	{
+ 		nBufLen = 16;
+@@ -79,6 +80,7 @@ unsigned char* CHash::hash(const unsigned char* data, int size, int alg)
+ 		MD2(data, d, pBufData);
+ 		break;
+ 	}
++#endif
+ 	case haMD4:
+ 	{
+ 		nBufLen = 16;
+@@ -281,11 +283,13 @@ void hash_iteration(unsigned char*& input, int iter, unsigned char*& tmp, int al
+ 
+ 	switch (alg)
+ 	{
++#ifndef OPENSSL_NO_MD2
+ 	case CHash::haMD2:
+ 	{
+ 		MD2(input, alg_size + 4, tmp);
+ 		break;
+ 	}
++#endif
+ 	case CHash::haMD4:
+ 	{
+ 		MD4(input, alg_size + 4, tmp);
+@@ -354,6 +358,7 @@ unsigned char* CHash::hash2(const char* password, const char* salt, int spinCoun
+ 	unsigned char* pBuffer1 = NULL;
+ 	switch (alg)
+ 	{
++#ifndef OPENSSL_NO_MD2
+ 	case haMD2:
+ 	{
+ 		alg_size = 16;
+@@ -361,6 +366,7 @@ unsigned char* CHash::hash2(const char* password, const char* salt, int spinCoun
+ 		MD2(inputData, inputDataLen, pBuffer1);
+ 		break;
+ 	}
++#endif
+ 	case haMD4:
+ 	{
+ 		alg_size = 16;
+diff --git a/DesktopEditor/xmlsec/src/osign/lib/src/certificate.cpp b/DesktopEditor/xmlsec/src/osign/lib/src/certificate.cpp
+index 8813a1da53..6bef831f37 100644
+--- a/DesktopEditor/xmlsec/src/osign/lib/src/certificate.cpp
++++ b/DesktopEditor/xmlsec/src/osign/lib/src/certificate.cpp
+@@ -36,43 +36,13 @@ namespace OSign
+ 		}
+ 	}
+ 
+-	tm ASN1_GetTimeT(ASN1_TIME* time)
++	tm ASN1_GetTimeT(const ASN1_TIME* time)
+ 	{
+ 		struct tm t;
+-		const char* str = (const char*) time->data;
+-		size_t i = 0;
+-
+ 		memset(&t, 0, sizeof(t));
+-
+-		if (time->type == V_ASN1_UTCTIME)
+-		{
+-			/* two digit year */
+-			t.tm_year = (str[i++] - '0') * 10;
+-			t.tm_year += (str[i++] - '0');
+-			if (t.tm_year < 70)
+-				t.tm_year += 100;
+-		}
+-		else if (time->type == V_ASN1_GENERALIZEDTIME)
+-		{
+-			/* four digit year */
+-			t.tm_year = (str[i++] - '0') * 1000;
+-			t.tm_year+= (str[i++] - '0') * 100;
+-			t.tm_year+= (str[i++] - '0') * 10;
+-			t.tm_year+= (str[i++] - '0');
+-			t.tm_year -= 1900;
+-		}
+-		t.tm_mon  = (str[i++] - '0') * 10;
+-		t.tm_mon += (str[i++] - '0') - 1; // -1 since January is 0 not 1.
+-		t.tm_mday = (str[i++] - '0') * 10;
+-		t.tm_mday+= (str[i++] - '0');
+-		t.tm_hour = (str[i++] - '0') * 10;
+-		t.tm_hour+= (str[i++] - '0');
+-		t.tm_min  = (str[i++] - '0') * 10;
+-		t.tm_min += (str[i++] - '0');
+-		t.tm_sec  = (str[i++] - '0') * 10;
+-		t.tm_sec += (str[i++] - '0');
+-
+-		/* Note: we did not adjust the time based on time zone information */
++		// ASN1_TIME is opaque in OpenSSL 4. ASN1_TIME_to_tm fills a UTC struct tm.
++		if (NULL == time || !ASN1_TIME_to_tm(time, &t))
++			memset(&t, 0, sizeof(t));
+ 		return t;
+ 	}
+ 
+@@ -164,13 +134,21 @@ namespace OSign
+ 				return false;
+ 			}
+ 
+-			X509_NAME* name_record = X509_get_subject_name(m_cert);
++			X509_NAME* name_record = X509_NAME_new();
++			if (NULL == name_record)
++			{
++				EVP_PKEY_CTX_free(pctx);
++				Destroy();
++				return false;
++			}
+ 
+ 			X509_NAME_add_entry_by_txt(name_record, "C", MBSTRING_ASC, (unsigned char *)c_record_country, -1, -1, 0);
+ 			X509_NAME_add_entry_by_txt(name_record, "O",  MBSTRING_ASC, (unsigned char *)c_record_organization_name, -1, -1, 0);
+ 			X509_NAME_add_entry_by_txt(name_record, "CN", MBSTRING_ASC, (unsigned char *)c_record_common_name, -1, -1, 0);
+ 
++			X509_set_subject_name(m_cert, name_record);
+ 			X509_set_issuer_name(m_cert, name_record);
++			X509_NAME_free(name_record);
+ 
+ 			if (!props.empty())
+ 			{
+@@ -258,7 +236,7 @@ namespace OSign
+ 		// names
+ 		if (true)
+ 		{
+-			X509_NAME* pSubjectName = X509_get_subject_name(m_internal->m_cert);
++			const X509_NAME* pSubjectName = X509_get_subject_name(m_internal->m_cert);
+ 			char buffer[10000];
+ 			memset(buffer, 0, 10000);
+ 
+@@ -283,9 +261,10 @@ namespace OSign
+ 			if(subjectAltNameLoc != -1)
+ 			{
+ 				X509_EXTENSION* ext = X509_get_ext(m_internal->m_cert, subjectAltNameLoc);
+-				ASN1_OCTET_STRING* oData = X509_EXTENSION_get_data(ext);
+-
+-				std::string sDataString = std::string((char*)oData->data, oData->length);
++				const ASN1_OCTET_STRING* oData = X509_EXTENSION_get_data(ext);
++				const unsigned char* pRaw = oData ? ASN1_STRING_get0_data(oData) : NULL;
++				int nRawLen = oData ? ASN1_STRING_length(oData) : 0;
++				std::string sDataString((const char*)pRaw, pRaw ? nRawLen : 0);
+ 				std::string::size_type posStart = 0;
+ 				std::string::size_type posEnd = sDataString.find(';');
+ 
+diff --git a/DesktopEditor/xmlsec/src/src/Certificate_openssl.h b/DesktopEditor/xmlsec/src/src/Certificate_openssl.h
+index 0fecbf3c7a..d83af13bad 100644
+--- a/DesktopEditor/xmlsec/src/src/Certificate_openssl.h
++++ b/DesktopEditor/xmlsec/src/src/Certificate_openssl.h
+@@ -256,7 +256,17 @@ public:
+ 			return false;
+ 		}
+ 
+-		X509_NAME* name_record = X509_get_subject_name(m_cert);
++		// OpenSSL 4 returns a const subject name. Build a new name and install it.
++		X509_NAME* name_record = X509_NAME_new();
++		if (NULL == name_record)
++		{
++			X509_free(m_cert);
++			m_cert = NULL;
++			EVP_PKEY_free(m_key);
++			m_key = NULL;
++			EVP_PKEY_CTX_free(pctx);
++			return false;
++		}
+ 
+ 		std::wstring sC = L"US";
+ 		std::wstring sO = L"Ascensio System SIA";
+@@ -282,7 +292,9 @@ public:
+ 		X509_NAME_add_entry_by_txt(name_record, "O",  MBSTRING_ASC, (unsigned char *)sO_A.c_str(), -1, -1, 0);
+ 		X509_NAME_add_entry_by_txt(name_record, "CN", MBSTRING_ASC, (unsigned char *)sCN_A.c_str(), -1, -1, 0);
+ 
++		X509_set_subject_name(m_cert, name_record);
+ 		X509_set_issuer_name(m_cert, name_record);
++		X509_NAME_free(name_record);
+ 
+ 		X509V3_CTX ctx;
+ 		X509V3_set_ctx_nodb(&ctx);
+@@ -380,10 +392,10 @@ public:
+ 			return "";
+ 		}
+ 
+-		if (asn1_serial->type == V_ASN1_NEG_INTEGER)
++		if (ASN1_STRING_type(asn1_serial) == V_ASN1_NEG_INTEGER)
+ 		{
+ 			std::string sPositive = "1";
+-			for (int i = 0; i < asn1_serial->length; ++i)
++			for (int i = 0; i < ASN1_STRING_length(asn1_serial); ++i)
+ 				sPositive += "00";
+ 			BIGNUM* pn = NULL;
+ 			int res = BN_hex2bn(&pn, sPositive.c_str());
+@@ -405,7 +417,7 @@ public:
+ 		if (NULL == m_cert)
+ 			return L"";
+ 
+-		X509_NAME* name = X509_get_issuer_name(m_cert);
++		const X509_NAME* name = X509_get_issuer_name(m_cert);
+ 		char buffer[10000];
+ 		memset(buffer, 0, 10000);
+ 
+@@ -1100,43 +1112,13 @@ public:
+ 	}
+ 
+ protected:
+-	tm ASN1_GetTimeT(ASN1_TIME* time)
++	tm ASN1_GetTimeT(const ASN1_TIME* time)
+ 	{
+ 		struct tm t;
+-		const char* str = (const char*) time->data;
+-		size_t i = 0;
+-
+ 		memset(&t, 0, sizeof(t));
+-
+-		if (time->type == V_ASN1_UTCTIME)
+-		{
+-			/* two digit year */
+-			t.tm_year = (str[i++] - '0') * 10;
+-			t.tm_year += (str[i++] - '0');
+-			if (t.tm_year < 70)
+-				t.tm_year += 100;
+-		}
+-		else if (time->type == V_ASN1_GENERALIZEDTIME)
+-		{
+-			/* four digit year */
+-			t.tm_year = (str[i++] - '0') * 1000;
+-			t.tm_year+= (str[i++] - '0') * 100;
+-			t.tm_year+= (str[i++] - '0') * 10;
+-			t.tm_year+= (str[i++] - '0');
+-			t.tm_year -= 1900;
+-		}
+-		t.tm_mon  = (str[i++] - '0') * 10;
+-		t.tm_mon += (str[i++] - '0') - 1; // -1 since January is 0 not 1.
+-		t.tm_mday = (str[i++] - '0') * 10;
+-		t.tm_mday+= (str[i++] - '0');
+-		t.tm_hour = (str[i++] - '0') * 10;
+-		t.tm_hour+= (str[i++] - '0');
+-		t.tm_min  = (str[i++] - '0') * 10;
+-		t.tm_min += (str[i++] - '0');
+-		t.tm_sec  = (str[i++] - '0') * 10;
+-		t.tm_sec += (str[i++] - '0');
+-
+-		/* Note: we did not adjust the time based on time zone information */
++		// ASN1_TIME is opaque in OpenSSL 4. ASN1_TIME_to_tm fills a UTC struct tm.
++		if (NULL == time || !ASN1_TIME_to_tm(time, &t))
++			memset(&t, 0, sizeof(t));
+ 		return t;
+ 	}
+ 

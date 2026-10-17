@@ -1,0 +1,25 @@
+diff --git a/DesktopEditor/doctrenderer/js_internal/v8/v8_base.h b/DesktopEditor/doctrenderer/js_internal/v8/v8_base.h
+--- a/DesktopEditor/doctrenderer/js_internal/v8/v8_base.h
++++ b/DesktopEditor/doctrenderer/js_internal/v8/v8_base.h
+@@ -131,11 +131,17 @@
+ 		// Distro libv8 keeps natives_blob.bin and snapshot_blob.bin next to
+ 		// the library, and links system ICU, so the bundled icudtl.dat lookup
+ 		// must not run.
+-		const char* v8DataDir = "/usr/lib64";
+-		if (!NSFile::CFileBinary::Exists(L"/usr/lib64/snapshot_blob.bin") &&
++		// V8 7.4 treats this argument as an executable path and strips the
++		// last component (src/base/file-utils.cc RelativePath). A directory
++		// without a trailing slash, "/usr/lib64", is looked up as
++		// "/usr/natives_blob.bin". Pass the blob files themselves.
++		std::wstring sV8BlobDir = L"/usr/lib64";
++		if (!NSFile::CFileBinary::Exists(sV8BlobDir + L"/snapshot_blob.bin") &&
+ 			NSFile::CFileBinary::Exists(L"/usr/lib/snapshot_blob.bin"))
+-			v8DataDir = "/usr/lib";
+-		v8::V8::InitializeExternalStartupData(v8DataDir);
++			sV8BlobDir = L"/usr/lib";
++		std::string sV8Natives = U_TO_UTF8(sV8BlobDir + L"/natives_blob.bin");
++		std::string sV8Snapshot = U_TO_UTF8(sV8BlobDir + L"/snapshot_blob.bin");
++		v8::V8::InitializeExternalStartupData(sV8Natives.c_str(), sV8Snapshot.c_str());
+ #else
+ 		v8::V8::InitializeICUDefaultLocation(sPrA.c_str());
+ 		v8::V8::InitializeExternalStartupData(sPrA.c_str());

@@ -1,0 +1,303 @@
+diff --git a/Apple/IWork.cpp b/Apple/IWork.cpp
+index dc0ffd3285..f14e6fc85a 100644
+--- a/Apple/IWork.cpp
++++ b/Apple/IWork.cpp
+@@ -41,7 +41,7 @@
+ #include <libodfgen/OdtGenerator.hxx>
+ #include <libodfgen/OdsGenerator.hxx>
+ #include <libodfgen/OdpGenerator.hxx>
+-#include <libodfgen/test/StringDocumentHandler.hxx>
++#include "StringDocumentHandler.h"
+ 
+ #include <memory>
+ #include <fstream>
+diff --git a/Apple/IWork.pro b/Apple/IWork.pro
+index 72c17f3ee0..6551ca56fd 100644
+--- a/Apple/IWork.pro
++++ b/Apple/IWork.pro
+@@ -58,22 +58,14 @@ core_android:DEFINES += NOT_USE_PTHREAD_CANCEL USE_FILE32API
+ CONFIG += core_boost_regex
+ include($$CORE_ROOT_DIR/Common/3dParty/boost/boost.pri)
+ 
+-# ZLIB
+-CONFIG += build_all_zlib build_zlib_as_sources
+-include($$PWD/../OfficeUtils/OfficeUtils.pri)
++# System libetonyek, libodfgen and librevenge. Common/3dParty/apple/fetch.py
++# clones those trees (and glm, mdds) at build time; packaging builds have
++# no network, and the distro already ships the libraries.
++CONFIG += link_pkgconfig
++PKGCONFIG += libetonyek-0.1 libodfgen-0.1 librevenge-stream-0.0
+ 
+-# LIBXML
+-CONFIG += core_static_link_xml_full
+-CONFIG += core_only_libxml
+-include($$PWD/../DesktopEditor/xml/build/qt/libxml2.pri)
++SOURCES += IWork.cpp \
++	StringDocumentHandler.cpp
+ 
+-#
+-include($$CORE_ROOT_DIR/Common/3dParty/apple/apple.pri)
+-
+-# TEST
+-HEADERS += $$ODF_LIB_ROOT/test/StringDocumentHandler.h
+-SOURCES += $$ODF_LIB_ROOT/test/StringDocumentHandler.cxx
+-
+-SOURCES += IWork.cpp
+-
+-HEADERS += IWork.h
++HEADERS += IWork.h \
++	StringDocumentHandler.h
+diff --git a/Common/3dParty/brotli/brotli.pri b/Common/3dParty/brotli/brotli.pri
+index a136517bf9..21a63dfc38 100644
+--- a/Common/3dParty/brotli/brotli.pri
++++ b/Common/3dParty/brotli/brotli.pri
+@@ -1,9 +1,4 @@
+-SRC_DIR = $$PWD/brotli/c
++# System brotli. make.py clones the bundled tree; packaging builds have no
++# network, and the distro already ships libbrotlidec.
+ DEFINES += FT_CONFIG_OPTION_USE_BROTLI
+-
+-INCLUDEPATH += \
+-  $$SRC_DIR/include
+-
+-SOURCES += $$files($$SRC_DIR/common/*.c)
+-SOURCES += $$files($$SRC_DIR/dec/*.c)
+-#SOURCES += $$files($$SRC_DIR/enc/*.c)
++LIBS += -lbrotlidec
+diff --git a/Common/3dParty/md/md2html.cpp b/Common/3dParty/md/md2html.cpp
+index 068d123fd6..b05d585877 100644
+--- a/Common/3dParty/md/md2html.cpp
++++ b/Common/3dParty/md/md2html.cpp
+@@ -1,6 +1,6 @@
+ #include "md2html.h"
+ 
+-#include "md4c/src/md4c-html.h"
++#include <md4c-html.h>
+ #include "../../../DesktopEditor/common/File.h"
+ 
+ namespace Md
+diff --git a/Common/3dParty/md/md2html.pri b/Common/3dParty/md/md2html.pri
+index ec039f648f..fbb1eb511f 100644
+--- a/Common/3dParty/md/md2html.pri
++++ b/Common/3dParty/md/md2html.pri
+@@ -1,11 +1,7 @@
+-DEFINES += MD4C_USE_UTF8
++# System md4c. The bundled copy is retrieved by fetch.py, which clones
++# md4c at build time. Packaging builds have no network.
++LIBS += -lmd4c-html
+ 
+-HEADERS += $$PWD/md4c/src/md4c.h \
+-           $$PWD/md4c/src/md4c-html.h \
+-           $$PWD/md4c/src/entity.h \
+-           $$PWD/md2html.h \
++HEADERS += $$PWD/md2html.h
+ 
+-SOURCES += $$PWD/md4c/src/md4c.c \
+-           $$PWD/md4c/src/md4c-html.c \
+-           $$PWD/md4c/src/entity.c \
+-           $$PWD/md2html.cpp
++SOURCES += $$PWD/md2html.cpp
+diff --git a/DesktopEditor/graphics/pro/fontengine.pri b/DesktopEditor/graphics/pro/fontengine.pri
+index 4e7fb25758..1d8d1d3db4 100644
+--- a/DesktopEditor/graphics/pro/fontengine.pri
++++ b/DesktopEditor/graphics/pro/fontengine.pri
+@@ -73,7 +73,9 @@ SOURCES += $$FONT_ENGINE_PATH/TextShaper.cpp
+ include($$PWD/textshaper.pri)
+ 
+ enable_support_shaper {
+-	include($$PWD/../../../Common/3dParty/harfbuzz/harfbuzz.pri)
++	# System harfbuzz. Common/3dParty/harfbuzz/make.py clones the bundled
++	# tree and writes harfbuzz.pri. Packaging builds have no network.
++	LIBS += -lharfbuzz
+ }
+ # -------------------------------------------------
+ 
+diff --git a/HwpFile/HWPFile.pro b/HwpFile/HWPFile.pro
+index 6b5b0a0964..0e263d71a8 100644
+--- a/HwpFile/HWPFile.pro
++++ b/HwpFile/HWPFile.pro
+@@ -45,7 +45,11 @@ PWD_ROOT_DIR = $$PWD
+ 
+ include($$CORE_ROOT_DIR/Common/base.pri)
+ 
+-LIBS += -L$$CORE_BUILDS_LIBRARIES_PATH -lCryptoPPLib
++use_bundled_cryptopp {
++    LIBS += -L$$CORE_BUILDS_LIBRARIES_PATH -lCryptoPPLib
++} else {
++    LIBS += -lcryptopp
++}
+ 
+ ADD_DEPENDENCY(kernel, UnicodeConverter, graphics, StarMathConverter)
+ 
+diff --git a/MsBinaryFile/XlsFile/Format/Logic/Biff_structures/BiffAttribute.h b/MsBinaryFile/XlsFile/Format/Logic/Biff_structures/BiffAttribute.h
+index 313871aeef..52efc57f29 100644
+--- a/MsBinaryFile/XlsFile/Format/Logic/Biff_structures/BiffAttribute.h
++++ b/MsBinaryFile/XlsFile/Format/Logic/Biff_structures/BiffAttribute.h
+@@ -36,6 +36,8 @@
+ 
+ #include "BiffStructure.h"
+ 
++#include <type_traits>
++
+ namespace XLS
+ {
+ 
+@@ -82,7 +84,26 @@ public:
+ 		 return *this;
+     }
+ 
+-    bool operator==(const Type & F2){return (val == F2);}
++    // C++20 rewrites != as !(==) and also considers the conversion
++    // operator, so `attr != enum` and `attr != 0` are ambiguous without
++    // an exact-match candidate.
++    bool operator==(const Type & F2) const { return (val == F2); }
++
++    bool operator!=(const Type & F2) const { return !(val == F2); }
++
++    template<class T>
++    typename std::enable_if<std::is_enum<T>::value || std::is_integral<T>::value, bool>::type
++    operator==(T F2) const
++    {
++        return static_cast<Type>(*this) == static_cast<Type>(F2);
++    }
++
++    template<class T>
++    typename std::enable_if<std::is_enum<T>::value || std::is_integral<T>::value, bool>::type
++    operator!=(T F2) const
++    {
++        return !(*this == F2);
++    }
+ 
+ protected:
+     boost::optional<Type>	val;
+diff --git a/X2tConverter/build/Qt/X2tConverter.pri b/X2tConverter/build/Qt/X2tConverter.pri
+index 95911c656c..88450fa939 100644
+--- a/X2tConverter/build/Qt/X2tConverter.pri
++++ b/X2tConverter/build/Qt/X2tConverter.pri
+@@ -156,7 +156,19 @@ LIBS += -L$$CORE_BUILDS_LIBRARIES_PATH -lXlsFormatLib
+ LIBS += -L$$CORE_BUILDS_LIBRARIES_PATH -lCompoundFileLib
+ 
+ #Crypto++
+-LIBS += -L$$CORE_BUILDS_LIBRARIES_PATH -lCryptoPPLib
++use_bundled_cryptopp {
++    LIBS += -L$$CORE_BUILDS_LIBRARIES_PATH -lCryptoPPLib
++} else {
++    LIBS += -lcryptopp
++    # Office crypto lives in the bundled CryptoPPLib build, not in
++    # system libcryptopp.
++    SOURCES += \
++        $$CORE_ROOT_DIR/OfficeCryptReader/source/ECMACryptFile.cpp \
++        $$CORE_ROOT_DIR/OfficeCryptReader/source/CryptTransform.cpp
++}
++# libgraphics and libPdfFile call BrotliDecoderDecompress. The bundled
++# decoder is not in the tree; link the system library.
++LIBS += -lbrotlidec
+ 
+ #All dynamic libs
+ 
+diff --git a/Apple/StringDocumentHandler.h b/Apple/StringDocumentHandler.h
+new file mode 100644
+index 0000000000..64c518d696
+--- /dev/null
++++ b/Apple/StringDocumentHandler.h
+@@ -0,0 +1,26 @@
++#ifndef STRINGDOCUMENTHANDLER_H
++#define STRINGDOCUMENTHANDLER_H
++
++#include <libodfgen/OdfDocumentHandler.hxx>
++
++// Collects the flat ODF XML that libodfgen writes. libodfgen ships this as a
++// test helper, and the distro package does not install it.
++class StringDocumentHandler : public OdfDocumentHandler
++{
++public:
++	StringDocumentHandler();
++
++	void startDocument() override;
++	void endDocument() override;
++	void startElement(const char *psName, const librevenge::RVNGPropertyList &xPropList) override;
++	void endElement(const char *psName) override;
++	void characters(const librevenge::RVNGString &sCharacters) override;
++
++	const char *cstr() const { return m_data.cstr(); }
++
++private:
++	librevenge::RVNGString m_data;
++	bool m_tagOpened;
++};
++
++#endif
+diff --git a/Apple/StringDocumentHandler.cpp b/Apple/StringDocumentHandler.cpp
+new file mode 100644
+index 0000000000..b1f9d644fa
+--- /dev/null
++++ b/Apple/StringDocumentHandler.cpp
+@@ -0,0 +1,68 @@
++#include "StringDocumentHandler.h"
++
++#include <cstring>
++
++StringDocumentHandler::StringDocumentHandler() : m_tagOpened(false)
++{
++}
++
++void StringDocumentHandler::startDocument()
++{
++}
++
++void StringDocumentHandler::endDocument()
++{
++	if (m_tagOpened)
++	{
++		m_data.append(">");
++		m_tagOpened = false;
++	}
++}
++
++void StringDocumentHandler::startElement(const char *psName, const librevenge::RVNGPropertyList &xPropList)
++{
++	if (m_tagOpened)
++	{
++		m_data.append(">");
++		m_tagOpened = false;
++	}
++	m_data.append("<");
++	m_data.append(psName);
++	librevenge::RVNGPropertyList::Iter i(xPropList);
++	for (i.rewind(); i.next(); )
++	{
++		if (std::strncmp(i.key(), "libwpd", 6) == 0)
++			continue;
++		m_data.append(" ");
++		m_data.append(i.key());
++		m_data.append("=\"");
++		m_data.append(librevenge::RVNGString::escapeXML(i()->getStr()));
++		m_data.append("\"");
++	}
++	m_tagOpened = true;
++}
++
++void StringDocumentHandler::endElement(const char *psName)
++{
++	if (m_tagOpened)
++	{
++		m_data.append("/>");
++		m_tagOpened = false;
++	}
++	else
++	{
++		m_data.append("</");
++		m_data.append(psName);
++		m_data.append(">");
++	}
++}
++
++void StringDocumentHandler::characters(const librevenge::RVNGString &sCharacters)
++{
++	if (m_tagOpened)
++	{
++		m_data.append(">");
++		m_tagOpened = false;
++	}
++	m_data.append(librevenge::RVNGString::escapeXML(sCharacters));
++}

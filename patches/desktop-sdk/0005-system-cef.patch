@@ -1,0 +1,1353 @@
+diff --git a/ChromiumBasedEditors/lib/ascdocumentscore.pri b/ChromiumBasedEditors/lib/ascdocumentscore.pri
+--- a/ChromiumBasedEditors/lib/ascdocumentscore.pri
++++ b/ChromiumBasedEditors/lib/ascdocumentscore.pri
+@@ -51,6 +51,7 @@
+             DEFINES += CEF_VERSION_107
+             CEF_PROJECT_PRI=$$PWD/cef_pri_107
+         }
++        !cef_version_107:CONFIG += use_system_cef
+     }
+ 
+     core_mac {
+@@ -60,8 +61,12 @@
+         }
+     }
+ 
+-    include($$CEF_PROJECT_PRI/cef_base.pri)
+-    include($$CEF_PROJECT_PRI/cef_client.pri)
++    use_system_cef {
++        include($$PWD/cef_pri/cef_system.pri)
++    } else {
++        include($$CEF_PROJECT_PRI/cef_base.pri)
++        include($$CEF_PROJECT_PRI/cef_client.pri)
++    }
+ }
+ 
+ # ------------------------------------------------------
+@@ -154,6 +159,11 @@
+ LIBS += -L$$CORE_BUILDS_LIBRARIES_PATH -lCryptoPPLib
+ } else {
+ LIBS += -lcryptopp
++# These live in the bundled Crypto++ static lib. System libcryptopp does not
++# have them, and the editor calls them from the renderer process.
++SOURCES += \
++	$$CORE_ROOT_DIR/OfficeCryptReader/source/ECMACryptFile.cpp \
++	$$CORE_ROOT_DIR/OfficeCryptReader/source/CryptTransform.cpp
+ }
+ LIBS += -L$$CORE_BUILDS_LIBRARIES_PATH -lCompoundFileLib
+ 
+@@ -247,3 +257,18 @@
+ }
+ 
+ ADD_DEPENDENCY(graphics, kernel, UnicodeConverter, kernel_network, PdfFile, XpsFile, DjVuFile, hunspell-1.7, ooxmlsignature, doctrenderer)
++
++use_system_cef {
++	# Distro libcef_dll_wrapper is built with -fno-rtti, so CefStreamResourceHandler
++	# has no typeinfo. cefview.cpp subclasses it and must be compiled the same way,
++	# or loading the library fails on _ZTI24CefStreamResourceHandler.
++	SOURCES -= $$PWD/src/cefview.cpp
++	NORTTI_SOURCES += $$PWD/src/cefview.cpp
++	nortti_cxx.input = NORTTI_SOURCES
++	nortti_cxx.output = ${OBJECTS_DIR}nortti_${QMAKE_FILE_BASE}.o
++	nortti_cxx.commands = $${QMAKE_CXX} -c $(CXXFLAGS) -fno-rtti $(INCPATH) ${QMAKE_FILE_IN} -o ${QMAKE_FILE_OUT}
++	nortti_cxx.variable_out = OBJECTS
++	nortti_cxx.name = compiling[nortti] ${QMAKE_FILE_IN}
++	nortti_cxx.dependency_type = TYPE_C
++	QMAKE_EXTRA_COMPILERS += nortti_cxx
++}
+diff --git a/ChromiumBasedEditors/lib/include/applicationmanager.h b/ChromiumBasedEditors/lib/include/applicationmanager.h
+--- a/ChromiumBasedEditors/lib/include/applicationmanager.h
++++ b/ChromiumBasedEditors/lib/include/applicationmanager.h
+@@ -204,7 +204,7 @@
+ 	// spell check
+ 	void StartSpellChecker();
+ 	void StopSpellChecker();
+-	void SpellCheck(const int& nEditorId, const std::string& sTask, int_64_type nId);
++	void SpellCheck(const int& nEditorId, const std::string& sTask, const std::string& nId);
+ 
+ 	// keyboard layout check
+ 	void StartKeyboardChecker();
+diff --git a/ChromiumBasedEditors/lib/include/applicationmanager_events.h b/ChromiumBasedEditors/lib/include/applicationmanager_events.h
+--- a/ChromiumBasedEditors/lib/include/applicationmanager_events.h
++++ b/ChromiumBasedEditors/lib/include/applicationmanager_events.h
+@@ -674,13 +674,13 @@
+ 	private:
+ 		std::string m_sResult;
+ 		int         m_nEditorId;
+-		long long   m_nFrameId;
++		std::string m_nFrameId;
+ 
+ 	public:
+ 		CAscSpellCheckType()
+ 		{
+ 			m_nEditorId = 0;
+-			m_nFrameId = 0;
++			m_nFrameId = "";
+ 		}
+ 		virtual ~CAscSpellCheckType()
+ 		{
+@@ -689,11 +689,11 @@
+ 		LINK_PROPERTY_STRINGA(Result)
+ 		LINK_PROPERTY_INT(EditorId)
+ 
+-		inline long long get_FrameId()
++		inline std::string get_FrameId()
+ 		{
+ 			return m_nFrameId;
+ 		}
+-		inline void put_FrameId(const long long& newVal)
++		inline void put_FrameId(const std::string& newVal)
+ 		{
+ 			m_nFrameId = newVal;
+ 		}
+@@ -916,13 +916,13 @@
+ 		std::wstring m_sUrl;
+ 		std::wstring m_sDestination;
+ 		int m_nId;
+-		long long m_nFrameId;
++		std::string m_nFrameId;
+ 
+ 	public:
+ 		CAscEditorScript()
+ 		{
+ 			m_nId = -1;
+-			m_nFrameId = -1;
++			m_nFrameId = "";
+ 		}
+ 		virtual ~CAscEditorScript()
+ 		{
+@@ -932,11 +932,11 @@
+ 		LINK_PROPERTY_STRING(Url)
+ 		LINK_PROPERTY_STRING(Destination)
+ 
+-		inline long long get_FrameId()
++		inline std::string get_FrameId()
+ 		{
+ 			return m_nFrameId;
+ 		}
+-		inline void put_FrameId(const long long& newVal)
++		inline void put_FrameId(const std::string& newVal)
+ 		{
+ 			m_nFrameId = newVal;
+ 		}
+diff --git a/ChromiumBasedEditors/lib/include/spellchecker.h b/ChromiumBasedEditors/lib/include/spellchecker.h
+--- a/ChromiumBasedEditors/lib/include/spellchecker.h
++++ b/ChromiumBasedEditors/lib/include/spellchecker.h
+@@ -52,7 +52,7 @@
+ 
+ public:
+     void SetApplicationManager(CAscApplicationManager* );
+-    void AddTask(const int& nEditorId, const std::string& sTask, int_64_type nId); // utf8
++    void AddTask(const int& nEditorId, const std::string& sTask, const std::string& nId); // utf8
+ 
+     void Init(const std::wstring& sDirectory, const std::wstring& sUserDirectory = L"");
+ 
+diff --git a/ChromiumBasedEditors/lib/src/applicationmanager.cpp b/ChromiumBasedEditors/lib/src/applicationmanager.cpp
+--- a/ChromiumBasedEditors/lib/src/applicationmanager.cpp
++++ b/ChromiumBasedEditors/lib/src/applicationmanager.cpp
+@@ -275,7 +275,7 @@
+ 	m_pInternal->m_oSpellChecker.End();
+ }
+ 
+-void CAscApplicationManager::SpellCheck(const int& nEditorId, const std::string& sTask, int_64_type nId)
++void CAscApplicationManager::SpellCheck(const int& nEditorId, const std::string& sTask, const std::string& nId)
+ {
+ 	m_pInternal->m_oSpellChecker.AddTask(nEditorId, sTask, nId);
+ }
+diff --git a/ChromiumBasedEditors/lib/src/applicationmanager_p.h b/ChromiumBasedEditors/lib/src/applicationmanager_p.h
+--- a/ChromiumBasedEditors/lib/src/applicationmanager_p.h
++++ b/ChromiumBasedEditors/lib/src/applicationmanager_p.h
+@@ -36,6 +36,7 @@
+ #ifndef APPLICATION_MANAGER_PRIVATE_H
+ #define APPLICATION_MANAGER_PRIVATE_H
+ 
++#include "./cef_compat_types.h"
+ #include "../include/applicationmanager.h"
+ #include <map>
+ 
+@@ -276,15 +277,16 @@
+ 
+ namespace NSArgumentList
+ {
+-	static int64 GetInt64(CefRefPtr<CefListValue> args, const int& index)
++	// CEF 155 frame ids are opaque strings (CefFrame::GetIdentifier).
++	// The wire format was already a decimal string; keep the names so every
++	// existing call site still compiles, and pass the token through.
++	static std::string GetInt64(CefRefPtr<CefListValue> args, const int& index)
+ 	{
+-		std::string tmp = args->GetString(index).ToString();
+-		return (int64)std::stoll(tmp);
++		return args->GetString(index).ToString();
+ 	}
+-	static bool SetInt64(CefRefPtr<CefListValue> args, const int& index, const int64& value)
++	static bool SetInt64(CefRefPtr<CefListValue> args, const int& index, const std::string& value)
+ 	{
+-		std::string tmp = std::to_string(value);
+-		return args->SetString(index, tmp);
++		return args->SetString(index, value);
+ 	}
+ }
+ 
+@@ -302,7 +304,7 @@
+ 	private:
+ 		CefRefPtr<CefRequest> m_request;
+ 		int m_requestId;
+-		int_64_type m_frameId;
++		std::string m_frameId;
+ 		bool m_isProgress;
+ 
+ 		CCefView_Private* m_view;
+@@ -423,7 +425,7 @@
+ 		}
+ 
+ 		void StartInternal();
+-		void SendToRenderer(const int_64_type& frameId, const std::string& sCode);
++		void SendToRenderer(const std::string& frameId, const std::string& sCode);
+ 		void SendAboutRetry();
+ 
+ 		void OnRequestComplete(CefRefPtr<CefURLRequest> request) override
+@@ -1482,7 +1484,7 @@
+ {
+ public:
+ 	int EditorId;
+-	int_64_type FrameId;
++	std::string FrameId;
+ 	std::wstring Url;
+ };
+ 
+diff --git a/ChromiumBasedEditors/lib/src/cefapplication.cpp b/ChromiumBasedEditors/lib/src/cefapplication.cpp
+--- a/ChromiumBasedEditors/lib/src/cefapplication.cpp
++++ b/ChromiumBasedEditors/lib/src/cefapplication.cpp
+@@ -464,16 +464,11 @@
+-	cef_string_t _cache;
+-	memset(&_cache, 0, sizeof(_cache));
+-	cef_string_from_wide(sCachePath.c_str(), sCachePath.length(), &_cache);
+-	settings.cache_path = _cache;
+-
+-	std::wstring sCachePathUser = sCachePath;
+-	cef_string_t _cache_user;
+-	memset(&_cache_user, 0, sizeof(_cache_user));
+-	cef_string_from_wide(sCachePathUser.c_str(), sCachePathUser.length(), &_cache_user);
+-	settings.user_data_path = _cache_user;
+-
+-	std::wstring sCachePathLog = sCachePath + L"/log.log";
+-	cef_string_t _cache_log;
+-	memset(&_cache_log, 0, sizeof(_cache_log));
+-	cef_string_from_wide(sCachePathLog.c_str(), sCachePathLog.length(), &_cache_log);
+-	settings.log_file = _cache_log;
++	// CEF 120+ dropped user_data_path. cache_path must sit in root_cache_path.
++	// Each cef_string_t owns its buffer. Copying one struct into both members
++	// makes CefSettingsTraits::clear free that buffer twice.
++	memset(&settings.root_cache_path, 0, sizeof(settings.root_cache_path));
++	cef_string_from_wide(sCachePath.c_str(), sCachePath.length(), &settings.root_cache_path);
++	memset(&settings.cache_path, 0, sizeof(settings.cache_path));
++	cef_string_from_wide(sCachePath.c_str(), sCachePath.length(), &settings.cache_path);
++
++	std::wstring sCachePathLog = sCachePath + L"/log.log";
++	memset(&settings.log_file, 0, sizeof(settings.log_file));
++	cef_string_from_wide(sCachePathLog.c_str(), sCachePathLog.length(), &settings.log_file);
+diff --git a/ChromiumBasedEditors/lib/src/cefview.cpp b/ChromiumBasedEditors/lib/src/cefview.cpp
+--- a/ChromiumBasedEditors/lib/src/cefview.cpp
++++ b/ChromiumBasedEditors/lib/src/cefview.cpp
+@@ -161,6 +161,9 @@
+ 		virtual bool IsInProgress() { return false; }
+ 		virtual bool IsComplete() { return false; }
+ 		virtual bool IsCanceled() { return true; }
++		virtual bool IsInterrupted() { return true; }
++		virtual bool IsPaused() { return false; }
++		virtual cef_download_interrupt_reason_t GetInterruptReason() { return CEF_DOWNLOAD_INTERRUPT_REASON_USER_CANCELED; }
+ 		virtual int64 GetCurrentSpeed() { return 0; }
+ 		virtual int GetPercentComplete() { return 0; }
+ 		virtual int64 GetTotalBytes() { return 0; }
+@@ -630,13 +633,13 @@
+ 
+ 		std::list<std::wstring> Files;
+ 		std::list<std::wstring> FilesDst;
+-		int_64_type FrameID;
++		std::string FrameID;
+ 		bool IsRemove;
+ 
+ 		CCloudCryptoUpload()
+ 		{
+ 			IsRemove = false;
+-			FrameID = -1;
++			FrameID = "";
+ 		}
+ 
+ 		~CCloudCryptoUpload()
+@@ -980,12 +983,12 @@
+ 
+ 	// картинки для скачки, в криптованном режиме
+ 	std::map<std::wstring, std::wstring> m_arCryptoImages;
+-	std::map<std::wstring, int_64_type> m_arCryptoImagesFrameId;
++	std::map<std::wstring, std::string> m_arCryptoImagesFrameId;
+ 
+ 	// файлы с ссылками для метода AscDesktopEditor.DownloadFiles
+ 	std::map<std::wstring, CDownloadFileItem> m_arDownloadedFiles;
+ 	std::map<std::wstring, std::wstring> m_arDownloadedFilesComplete;
+-	int64 m_nDownloadedFilesFrameId;
++	std::string m_nDownloadedFilesFrameId;
+ 
+ 	// приходил ли хоть раз евент onDocumentModifiedChanged
+ 	bool m_bIsReceiveOnce_OnDocumentModified;
+@@ -1122,7 +1125,7 @@
+ 		m_bIsLocalFileLocked = false;
+ 		m_pLocalFileLocker = NULL;
+ 
+-		m_nDownloadedFilesFrameId = -1;
++		m_nDownloadedFilesFrameId = "";
+ 
+ 		m_pLockRecover = NULL;
+ 		m_pTemporaryCloudFileInfo = NULL;
+@@ -1472,7 +1475,7 @@
+ 
+ 			if (this->GetBrowser())
+ 			{
+-				CefRefPtr<CefFrame> _frame = this->GetBrowser()->GetFrame("frameEditor");
++				CefRefPtr<CefFrame> _frame = this->GetBrowser()->GetFrameByName("frameEditor");
+ 				if (_frame)
+ 				{
+ 					std::string sCode = "window.Asc.editor.onLocalSaveToDrawingFormat(" + std::to_string(nError) + ");";
+@@ -1508,7 +1511,7 @@
+ 				}
+ 				else
+ 				{
+-					CefRefPtr<CefFrame> _frame = this->GetBrowser()->GetFrame("frameEditor");
++					CefRefPtr<CefFrame> _frame = this->GetBrowser()->GetFrameByName("frameEditor");
+ 					if (_frame)
+ 					{
+ 						std::wstring sCode = L"(function(){ if (window.Asc && window.Asc.editor) window.Asc.editor.endExternalConvertation(); })();";
+@@ -1919,8 +1922,9 @@
+ 							  const CefString& title,
+ 							  const CefString& default_file_path,
+ 							  const std::vector<CefString>& accept_filters,
+-							  int selected_accept_filter,
+-							  CefRefPtr<CefFileDialogCallback> callback)
++							  const std::vector<CefString>& accept_extensions,
++							  const std::vector<CefString>& accept_descriptions,
++							  CefRefPtr<CefFileDialogCallback> callback) OVERRIDE
+ 	{
+ #ifndef _MAC
+ 
+@@ -2289,6 +2293,7 @@
+ 	virtual bool OnBeforePopup(
+ 			CefRefPtr<CefBrowser> browser,
+ 			CefRefPtr<CefFrame> frame,
++			int popup_id,
+ 			const CefString& target_url,
+ 			const CefString& target_frame_name,
+ 			CefLifeSpanHandler::WindowOpenDisposition target_disposition,
+@@ -2316,7 +2321,7 @@
+ 			}
+ 		}
+ 
+-		CheckPopup(target_url.ToWString(), false, (WOD_NEW_BACKGROUND_TAB == target_disposition) ? true : false, false, sFrameUrl);
++		CheckPopup(target_url.ToWString(), false, (CEF_WOD_NEW_BACKGROUND_TAB == target_disposition) ? true : false, false, sFrameUrl);
+ 		return true;
+ 	}
+ 
+@@ -2331,7 +2336,7 @@
+ 		std::wstring sFrameUrl = L"";
+ 		if (frame)
+ 			sFrameUrl = frame->GetURL().ToWString();
+-		CheckPopup(target_url.ToWString(), false, (WOD_NEW_BACKGROUND_TAB == target_disposition) ? true : false, true, sFrameUrl);
++		CheckPopup(target_url.ToWString(), false, (CEF_WOD_NEW_BACKGROUND_TAB == target_disposition) ? true : false, true, sFrameUrl);
+ 		return true;
+ 	}
+ 
+@@ -3747,7 +3752,7 @@
+ 		{
+ 			std::wstring sUrl1 = args->GetString(0).ToWString();
+ 			std::wstring sUrl2 = args->GetString(1).ToWString();
+-			int_64_type nFrameID = NSArgumentList::GetInt64(args, 2);
++			std::string nFrameID = NSArgumentList::GetInt64(args, 2);
+ 
+ 			if (sUrl2.empty() && ((0 == sUrl1.find(L"image")) || (0 == sUrl1.find(L"display"))))
+ 			{
+@@ -3771,7 +3776,7 @@
+ 					if (m_pParent->m_pInternal->m_arCryptoImages.find(sUrl1) == m_pParent->m_pInternal->m_arCryptoImages.end())
+ 					{
+ 						m_pParent->m_pInternal->m_arCryptoImages.insert(std::pair<std::wstring, std::wstring>(sUrl1, sNum));
+-						m_pParent->m_pInternal->m_arCryptoImagesFrameId.insert(std::pair<std::wstring, int_64_type>(sUrl1, nFrameID));
++						m_pParent->m_pInternal->m_arCryptoImagesFrameId.insert(std::pair<std::wstring, std::string>(sUrl1, nFrameID));
+ 						m_pParent->StartDownload(sUrl1);
+ 					}
+ 				}
+@@ -3797,7 +3802,7 @@
+ 
+ 			int nIndex = 0;
+ 			int nParams = args->GetInt(nIndex++);
+-			int_64_type nFrameID = NSArgumentList::GetInt64(args, nIndex++);
++			std::string nFrameID = NSArgumentList::GetInt64(args, nIndex++);
+ 			m_pParent->m_pInternal->m_nDownloadedFilesFrameId = nFrameID;
+ 
+ 			while (nIndex < nCount)
+@@ -3814,7 +3819,7 @@
+ 
+ 			if (nParams == 1)
+ 			{
+-				CefRefPtr<CefFrame> frame = browser->GetFrame(nFrameID);
++				CefRefPtr<CefFrame> frame = browser->GetFrameByIdentifier(nFrameID);
+ 				if (frame)
+ 					frame->ExecuteJavaScript("window.onSystemMessage && window.onSystemMessage({ type : \"operation\", block : true, opType : 0 });", frame->GetURL(), 0);
+ 			}
+@@ -3877,7 +3882,7 @@
+ 
+ 						int nIndex = 0;
+ 						NSArgumentList::SetInt64(message->GetArgumentList(), nIndex++, m_pParent->m_pInternal->m_nDownloadedFilesFrameId);
+-						m_pParent->m_pInternal->m_nDownloadedFilesFrameId = -1;
++						m_pParent->m_pInternal->m_nDownloadedFilesFrameId = "";
+ 
+ 						for (std::map<std::wstring, std::wstring>::iterator iterComplete = m_pParent->m_pInternal->m_arDownloadedFilesComplete.begin();
+ 							 iterComplete != m_pParent->m_pInternal->m_arDownloadedFilesComplete.end(); iterComplete++)
+@@ -3910,7 +3915,7 @@
+ 			std::string sPass = args->GetString(0).ToString();
+ 			int nMode = args->GetInt(1);
+ 			bool bIsCallback = args->GetBool(2);
+-			int_64_type nFrameId = NSArgumentList::GetInt64(args, 3);
++			std::string nFrameId = NSArgumentList::GetInt64(args, 3);
+ 
+ 			if (!bIsCallback)
+ 			{
+@@ -4293,7 +4298,7 @@
+ 				}
+ 				else
+ 				{
+-					CefRefPtr<CefFrame> _frame = browser->GetFrame("frameEditor");
++					CefRefPtr<CefFrame> _frame = browser->GetFrameByName("frameEditor");
+ 					if (_frame)
+ 					{
+ 						std::wstring sCode = L"(function(){ if (window.Asc && window.Asc.editor) window.Asc.editor.startExternalConvertation('sendTo'); })();";
+@@ -4478,7 +4483,7 @@
+ 
+ 		std::wstring sFilePath = args->GetString(0).ToWString();
+ 		int nFileType = args->GetInt(1);
+-		int_64_type nFrameId = NSArgumentList::GetInt64(args, 2);
++		std::string nFrameId = NSArgumentList::GetInt64(args, 2);
+ 
+ 		if (0 == sFilePath.find(L"file:///"))
+ 		{
+@@ -4783,7 +4788,7 @@
+ 	if (--browser_count_ == 0)
+ 	{
+ 		// Remove and delete message router handlers.
+-		MessageHandlerSet::const_iterator it =
++		client::test_runner::MessageHandlerSet::const_iterator it =
+ 				message_handler_set_.begin();
+ 		for (; it != message_handler_set_.end(); ++it)
+ 		{
+@@ -5494,7 +5499,9 @@
+ }
+ 
+ virtual void OnRenderProcessTerminated(CefRefPtr<CefBrowser> browser,
+-									   TerminationStatus status) OVERRIDE
++									   TerminationStatus status,
++									   int error_code,
++									   const CefString& error_string) OVERRIDE
+ {
+ 	CEF_REQUIRE_UI_THREAD();
+ 
+@@ -5543,7 +5550,7 @@
+ }
+ #endif
+ 
+-virtual void OnBeforeDownload(CefRefPtr<CefBrowser> browser,
++virtual bool OnBeforeDownload(CefRefPtr<CefBrowser> browser,
+ 							  CefRefPtr<CefDownloadItem> download_item,
+ 							  const CefString& suggested_name,
+ 							  CefRefPtr<CefBeforeDownloadCallback> callback) OVERRIDE
+@@ -5601,7 +5608,7 @@
+ 		NSStringUtils::string_replace(sDestPath, L"/", L"\\");
+ #endif
+ 		callback->Continue(sDestPath, false);
+-		return;
++		return true;
+ 	}
+ 
+ 	// скачивание, которое надо отправлять наверх
+@@ -5619,6 +5626,7 @@
+ 	pEvent->m_pData = pData;
+ 
+ 	m_pParent->GetAppManager()->Apply(pEvent);
++	return true;
+ }
+ 
+ virtual void OnDownloadUpdated(CefRefPtr<CefBrowser> browser,
+@@ -5738,8 +5746,8 @@
+ 		{
+ 			if (download_item->IsComplete() || download_item->IsCanceled())
+ 			{
+-				int_64_type nFrameID = 0;
+-				std::map<std::wstring, int_64_type>::iterator findCryptoImageFrameId = m_pParent->m_pInternal->m_arCryptoImagesFrameId.find(sUrlOriginal);
++				std::string nFrameID;
++				std::map<std::wstring, std::string>::iterator findCryptoImageFrameId = m_pParent->m_pInternal->m_arCryptoImagesFrameId.find(sUrlOriginal);
+ 				if (findCryptoImageFrameId !=  m_pParent->m_pInternal->m_arCryptoImagesFrameId.end())
+ 				{
+ 					nFrameID = findCryptoImageFrameId->second;
+@@ -5781,7 +5789,7 @@
+ 
+ 					int nIndex = 0;
+ 					NSArgumentList::SetInt64(message->GetArgumentList(), nIndex++, m_pParent->m_pInternal->m_nDownloadedFilesFrameId);
+-					m_pParent->m_pInternal->m_nDownloadedFilesFrameId = -1;
++					m_pParent->m_pInternal->m_nDownloadedFilesFrameId = "";
+ 
+ 					for (std::map<std::wstring, std::wstring>::iterator iter = m_pParent->m_pInternal->m_arDownloadedFilesComplete.begin();
+ 						 iter != m_pParent->m_pInternal->m_arDownloadedFilesComplete.end(); iter++)
+@@ -5883,7 +5891,15 @@
+ virtual void OnDeleteCookie(bool bIsPresent);
+ virtual void OnFoundCookies(std::map<std::string, std::string>& mapValues);
+ 
++// BaseClientHandler tells concrete handlers apart by this key.
++static constexpr int kTypeKey = 0;
++virtual const void* GetTypeKey() const OVERRIDE { return &kTypeKey; }
++
+ // ClientHandlerDelegate
++virtual bool UseViews() const OVERRIDE { return false; }
++virtual bool UseAlloyStyle() const OVERRIDE { return true; }
++virtual void OnContentsBounds(const CefRect& new_bounds) OVERRIDE {}
++
+ virtual void OnBrowserCreated(CefRefPtr<CefBrowser> browser) OVERRIDE {}
+ 
+ // Called when the browser is closing.
+@@ -6361,7 +6377,7 @@
+ #endif
+ 		if (GetBrowser())
+ 		{
+-			CefRefPtr<CefFrame> _frame = GetBrowser()->GetFrame("frameEditor");
++			CefRefPtr<CefFrame> _frame = GetBrowser()->GetFrameByName("frameEditor");
+ 			if (_frame)
+ 			{
+ 				std::wstring sCode = L"(function(){ \n\
+@@ -7411,7 +7427,7 @@
+ 			{
+ 				if (this->m_pInternal->GetBrowser())
+ 				{
+-					CefRefPtr<CefFrame> _frame = this->m_pInternal->GetBrowser()->GetFrame("frameEditor");
++					CefRefPtr<CefFrame> _frame = this->m_pInternal->GetBrowser()->GetFrameByName("frameEditor");
+ 					if (_frame)
+ 					{
+ 						std::string sCode = "window.Asc.editor.onLocalSaveToDrawingFormat(0);";
+@@ -7871,12 +7887,12 @@
+ 		{
+ 			std::wstring sCode = pData->get_Value();
+ 
+-			std::vector<int64> arIds;
++			std::vector<CefString> arIds;
+ 			pBrowser->GetFrameIdentifiers(arIds);
+ 
+-			for (std::vector<int64>::iterator iter = arIds.begin(); iter != arIds.end(); iter++)
++			for (std::vector<CefString>::iterator iter = arIds.begin(); iter != arIds.end(); iter++)
+ 			{
+-				CefRefPtr<CefFrame> frame = pBrowser->GetFrame(*iter);
++				CefRefPtr<CefFrame> frame = pBrowser->GetFrameByIdentifier(*iter);
+ 				if (frame)
+ 					frame->ExecuteJavaScript(sCode, frame->GetURL(), 0);
+ 			}
+@@ -8090,12 +8106,12 @@
+ 	NSStringUtils::string_replaceA(sViewportInfo, "\"", "\\\"");
+ 	std::string sCode = "(function(){window.AscDesktopEditor._setViewportSettings(\"" + sViewportInfo + "\");})();";
+ 
+-	std::vector<int64> identifiers;
++	std::vector<CefString> identifiers;
+ 	pBrowser->GetFrameIdentifiers(identifiers);
+ 
+-	for (std::vector<int64>::iterator iter = identifiers.begin(); iter != identifiers.end(); iter++)
++	for (std::vector<CefString>::iterator iter = identifiers.begin(); iter != identifiers.end(); iter++)
+ 	{
+-		CefRefPtr<CefFrame> pFrame = pBrowser->GetFrame(*iter);
++		CefRefPtr<CefFrame> pFrame = pBrowser->GetFrameByIdentifier(*iter);
+ 		if (pFrame)
+ 		{
+ 			pFrame->ExecuteJavaScript(sCode, pFrame->GetURL(), 0);
+@@ -8114,7 +8130,7 @@
+ {
+ 	if (!View->m_handler || !View->m_handler->GetBrowser())
+ 		return nullptr;
+-	return View->m_handler->GetBrowser()->GetFrame(FrameID);
++	return View->m_handler->GetBrowser()->GetFrameByIdentifier(FrameID);
+ }
+ 
+ void CCefView::ExecuteInAllFrames(const std::string& sCode, const bool& isMain)
+@@ -8123,12 +8139,12 @@
+ 	if (!pBrowser)
+ 		return;
+ 
+-	std::vector<int64> identifiers;
++	std::vector<CefString> identifiers;
+ 	pBrowser->GetFrameIdentifiers(identifiers);
+ 
+-	for (std::vector<int64>::iterator iter = identifiers.begin(); iter != identifiers.end(); iter++)
++	for (std::vector<CefString>::iterator iter = identifiers.begin(); iter != identifiers.end(); iter++)
+ 	{
+-		CefRefPtr<CefFrame> pFrame = pBrowser->GetFrame(*iter);
++		CefRefPtr<CefFrame> pFrame = pBrowser->GetFrameByIdentifier(*iter);
+ 		if (!pFrame)
+ 			continue;
+ 		if (!isMain && pFrame->IsMain())
+@@ -8725,7 +8741,7 @@
+ 	if (!pBrowser)
+ 		return;
+ 
+-	CefRefPtr<CefFrame> pFrame = pBrowser->GetFrame("frameEditor");
++	CefRefPtr<CefFrame> pFrame = pBrowser->GetFrameByName("frameEditor");
+ 	if (pFrame)
+ 		pFrame->ExecuteJavaScript("if (window.UpdateInstallPlugins) window.UpdateInstallPlugins();", pFrame->GetURL(), 0);
+ }
+@@ -8842,12 +8858,12 @@
+ 	std::string sCodeValue = bIsEditorPresent ? "true" : "false";
+ 	std::string sCode = "(function(){if (window.onChangeEditorsCount) window.onChangeEditorsCount(" + sCodeValue + ");})();";
+ 
+-	std::vector<int64> identifiers;
++	std::vector<CefString> identifiers;
+ 	pView->m_pInternal->GetBrowser()->GetFrameIdentifiers(identifiers);
+ 
+-	for (std::vector<int64>::iterator iter = identifiers.begin(); iter != identifiers.end(); iter++)
++	for (std::vector<CefString>::iterator iter = identifiers.begin(); iter != identifiers.end(); iter++)
+ 	{
+-		CefRefPtr<CefFrame> pFrame = pView->m_pInternal->GetBrowser()->GetFrame(*iter);
++		CefRefPtr<CefFrame> pFrame = pView->m_pInternal->GetBrowser()->GetFrameByIdentifier(*iter);
+ 		if (pFrame)
+ 		{
+ 			pFrame->ExecuteJavaScript(sCode, pFrame->GetURL(), 0);
+@@ -8863,14 +8879,14 @@
+ 		m_view->GetBrowser()->GetMainFrame()->CreateURLRequest(m_request, this);
+ 	}
+ 
+-	void CSimpleRequestClient::SendToRenderer(const int_64_type& frameId, const std::string& sCode)
++	void CSimpleRequestClient::SendToRenderer(const std::string& frameId, const std::string& sCode)
+ 	{
+ 		if (m_view->m_bIsDestroying || m_view->m_bIsDestroy)
+ 			return;
+ 
+ 		if (m_view->GetBrowser())
+ 		{
+-			CefRefPtr<CefFrame> frame = m_view->GetBrowser()->GetFrame(frameId);
++			CefRefPtr<CefFrame> frame = m_view->GetBrowser()->GetFrameByIdentifier(frameId);
+ 			if (frame)
+ 				frame->ExecuteJavaScript(sCode, frame->GetURL(), 0);
+ 		}
+@@ -8883,7 +8899,7 @@
+ 
+ 		if (m_view->GetBrowser())
+ 		{
+-			CefRefPtr<CefFrame> frame = m_view->GetBrowser()->GetFrame(m_frameId);
++			CefRefPtr<CefFrame> frame = m_view->GetBrowser()->GetFrameByIdentifier(m_frameId);
+ 			if (frame)
+ 				frame->ExecuteJavaScript("console.log('[simplerequest]: attept " + std::to_string(m_nRetryCount + 1) + "');", frame->GetURL(), 0);
+ 		}
+diff --git a/ChromiumBasedEditors/lib/src/cefwrapper/client_app.h b/ChromiumBasedEditors/lib/src/cefwrapper/client_app.h
+--- a/ChromiumBasedEditors/lib/src/cefwrapper/client_app.h
++++ b/ChromiumBasedEditors/lib/src/cefwrapper/client_app.h
+@@ -36,6 +36,8 @@
+ #ifndef CEF_ASC_CLIENT_APP_H_
+ #define CEF_ASC_CLIENT_APP_H_
+ 
++#include "../cef_compat_types.h"
++
+ #define private protected // OnScheduleMessagePumpWork is private, but used here...
+ 
+ #ifndef CEF_2623
+diff --git a/ChromiumBasedEditors/lib/src/cefwrapper/client_renderer_wrapper.cpp b/ChromiumBasedEditors/lib/src/cefwrapper/client_renderer_wrapper.cpp
+--- a/ChromiumBasedEditors/lib/src/cefwrapper/client_renderer_wrapper.cpp
++++ b/ChromiumBasedEditors/lib/src/cefwrapper/client_renderer_wrapper.cpp
+@@ -1076,7 +1076,7 @@
+ 
+ 		inline void CallInEditorFrame(CefRefPtr<CefBrowser>& browser, const std::string& sCode)
+ 		{
+-			CefRefPtr<CefFrame> frame = browser->GetFrame("frameEditor");
++			CefRefPtr<CefFrame> frame = browser->GetFrameByName("frameEditor");
+ 			if (!frame)
+ 				frame = browser->GetMainFrame();
+ 
+@@ -1456,7 +1456,7 @@
+ 					{
+ 						CefRefPtr<CefBrowser> browser = CefV8Context::GetCurrentContext()->GetBrowser();
+ 						CefRefPtr<CefProcessMessage> message = CefProcessMessage::Create("load_js");
+-						int64 frameId = CefV8Context::GetCurrentContext()->GetFrame()->GetIdentifier();
++						std::string frameId = CefV8Context::GetCurrentContext()->GetFrame()->GetIdentifier().ToString();
+ 						message->GetArgumentList()->SetString(0, GetFullUrl2(strUrl, CefV8Context::GetCurrentContext()->GetFrame()->GetURL().ToWString()));
+ 						message->GetArgumentList()->SetString(1, strPath);
+ 						NSArgumentList::SetInt64(message->GetArgumentList(), 2, frameId);
+@@ -1556,7 +1556,7 @@
+ 			}
+ 			else if (name == "SpellCheck")
+ 			{
+-				int64 frameId = CefV8Context::GetCurrentContext()->GetFrame()->GetIdentifier();
++				std::string frameId = CefV8Context::GetCurrentContext()->GetFrame()->GetIdentifier().ToString();
+ 				CefRefPtr<CefProcessMessage> message = CefProcessMessage::Create("spell_check_task");
+ 				message->GetArgumentList()->SetInt(0, (int)m_nEditorId);
+ 				message->GetArgumentList()->SetString(1, arguments[0]->GetStringValue());
+@@ -2911,7 +2911,7 @@
+ 
+ 				// send to editor
+ 				CefRefPtr<CefBrowser> browser = CefV8Context::GetCurrentContext()->GetBrowser();
+-				CefRefPtr<CefFrame> _frame = browser->GetFrame("frameEditor");
++				CefRefPtr<CefFrame> _frame = browser->GetFrameByName("frameEditor");
+ 				if (!_frame)
+ 					_frame = browser->GetMainFrame();
+ 
+@@ -2937,7 +2937,7 @@
+ 
+ 				// send to editor
+ 				CefRefPtr<CefBrowser> browser = CefV8Context::GetCurrentContext()->GetBrowser();
+-				CefRefPtr<CefFrame> _frame = browser->GetFrame("frameEditor");
++				CefRefPtr<CefFrame> _frame = browser->GetFrameByName("frameEditor");
+ 				if (!_frame)
+ 					_frame = browser->GetMainFrame();
+ 
+@@ -3011,7 +3011,7 @@
+ 			{
+ 				CefRefPtr<CefProcessMessage> message = CefProcessMessage::Create("on_open_filename_dialog");
+ 				message->GetArgumentList()->SetString(0, arguments[0]->GetStringValue());
+-				message->GetArgumentList()->SetString(1, std::to_string(CefV8Context::GetCurrentContext()->GetFrame()->GetIdentifier()));
++				message->GetArgumentList()->SetString(1, CefV8Context::GetCurrentContext()->GetFrame()->GetIdentifier().ToString());
+ 				if (arguments.size() > 1)
+ 					message->GetArgumentList()->SetBool(2, arguments[1]->GetBoolValue());
+ 				SEND_MESSAGE_TO_BROWSER_PROCESS(message);
+@@ -3107,10 +3107,10 @@
+ 			{
+ 				CefRefPtr<CefProcessMessage> message = CefProcessMessage::Create("send_system_message");
+ 
+-				int64 frameID = CefV8Context::GetCurrentContext()->GetFrame()->GetIdentifier();
++				std::string frameID = CefV8Context::GetCurrentContext()->GetFrame()->GetIdentifier().ToString();
+ 
+ 				message->GetArgumentList()->SetString(0, arguments[0]->GetStringValue());
+-				message->GetArgumentList()->SetString(1, std::to_string(frameID));
++				message->GetArgumentList()->SetString(1, frameID);
+ 
+ 				SEND_MESSAGE_TO_BROWSER_PROCESS(message);
+ 				return true;
+@@ -3120,7 +3120,7 @@
+ 				CefRefPtr<CefProcessMessage> message = CefProcessMessage::Create("file_get_hash");
+ 				message->GetArgumentList()->SetString(0, arguments[0]->GetStringValue());
+ 				message->GetArgumentList()->SetString(1, (arguments.size() > 1) ? arguments[1]->GetStringValue() : "sha-256");
+-				message->GetArgumentList()->SetString(2, std::to_string(CefV8Context::GetCurrentContext()->GetFrame()->GetIdentifier()));
++				message->GetArgumentList()->SetString(2, CefV8Context::GetCurrentContext()->GetFrame()->GetIdentifier().ToString());
+ 				SEND_MESSAGE_TO_BROWSER_PROCESS(message);
+ 				return true;
+ 			}
+@@ -3676,7 +3676,7 @@
+ 			}
+ 			else if (name == "SendByMail")
+ 			{
+-				CefRefPtr<CefFrame> _frame = CefV8Context::GetCurrentContext()->GetBrowser()->GetFrame("frameEditor");
++				CefRefPtr<CefFrame> _frame = CefV8Context::GetCurrentContext()->GetBrowser()->GetFrameByName("frameEditor");
+ 				if (!_frame)
+ 					return true;
+ 
+@@ -3819,7 +3819,7 @@
+ 			{
+ 				CefRefPtr<CefProcessMessage> message = CefProcessMessage::Create("on_save_filename_dialog");
+ 				message->GetArgumentList()->SetString(0, arguments[0]->GetStringValue());
+-				message->GetArgumentList()->SetString(1, std::to_string(CefV8Context::GetCurrentContext()->GetFrame()->GetIdentifier()));
++				message->GetArgumentList()->SetString(1, CefV8Context::GetCurrentContext()->GetFrame()->GetIdentifier().ToString());
+ 
+ 				if (arguments.size() > 1 && arguments[1]->IsString())
+ 					message->GetArgumentList()->SetString(2, arguments[1]->GetStringValue());
+@@ -4039,9 +4039,7 @@
+ 			}
+ 			else if (name == "GetFrameId")
+ 			{
+-				int64 frameID = CefV8Context::GetCurrentContext()->GetFrame()->GetIdentifier();
+-				uint64 uframeID = (uint64)frameID;
+-				std::string sId = std::to_string(uframeID);
++				std::string sId = CefV8Context::GetCurrentContext()->GetFrame()->GetIdentifier().ToString();
+ 				retval = CefV8Value::CreateString(sId);
+ 				return true;
+ 			}
+@@ -4049,8 +4047,7 @@
+ 			{
+ 				std::string sId = arguments[0]->GetStringValue().ToString();
+ 				std::string sCode = arguments[1]->GetStringValue().ToString();
+-				int64 frameId = (int64)(std::stoull(sId));
+-				CefRefPtr<CefFrame> frame = CefV8Context::GetCurrentContext()->GetBrowser()->GetFrame(frameId);
++				CefRefPtr<CefFrame> frame = CefV8Context::GetCurrentContext()->GetBrowser()->GetFrameByIdentifier(sId);
+ 				if (frame)
+ 					frame->ExecuteJavaScript(sCode, frame->GetURL(), 0);
+ 				return true;
+@@ -4811,6 +4808,9 @@
+ #ifdef CEF_VERSION_107
+ 				nVersion = 107;
+ #endif
++#ifdef CEF_VERSION_155
++				nVersion = 155;
++#endif
+ 
+ 				retval = CefV8Value::CreateInt(nVersion);
+ 				return true;
+@@ -5135,13 +5135,13 @@
+ 				CefRefPtr<CefFrame> callerFrame = CefV8Context::GetCurrentContext()->GetFrame();
+ 				CefRefPtr<CefFrame> mainFrame = browser->GetMainFrame();
+ 
+-				int64 callerFrameId = callerFrame->GetIdentifier();
++				std::string callerFrameId = callerFrame->GetIdentifier().ToString();
+ 
+ 				std::string sCode = "\
+ (function() {\
+ var result = '[]';\
+ try { result = JSON.stringify(PortalsStore.portals()); } catch(e) {}\
+-window.AscDesktopEditor._onGetCloudsResponse(" + std::to_string(callerFrameId) + ", \"" + sCallbackId + "\", result);\
++window.AscDesktopEditor._onGetCloudsResponse(\"" + callerFrameId + "\", \"" + sCallbackId + "\", result);\
+ })();";
+ 
+ 				mainFrame->ExecuteJavaScript(sCode, mainFrame->GetURL(), 0);
+@@ -5151,13 +5151,13 @@
+ 			}
+ 			else if (name == "_onGetCloudsResponse")
+ 			{
+-				int64 targetFrameId = (int64)arguments[0]->GetDoubleValue();
++				std::string targetFrameId = arguments[0]->GetStringValue().ToString();
+ 				std::string sCallbackId = arguments[1]->GetStringValue().ToString();
+ 				std::string sJson = arguments[2]->GetStringValue().ToString();
+ 
+ 				CefRefPtr<CefBrowser> browser =
+ 					CefV8Context::GetCurrentContext()->GetBrowser();
+-				CefRefPtr<CefFrame> targetFrame = browser->GetFrame(targetFrameId);
++				CefRefPtr<CefFrame> targetFrame = browser->GetFrameByIdentifier(targetFrameId);
+ 
+ 				if (targetFrame)
+ 				{
+@@ -5188,12 +5188,12 @@
+ 			{
+ 				CefRefPtr<CefBrowser> browser = CefV8Context::GetCurrentContext()->GetBrowser();
+ 
+-				std::vector<int64> ids;
++				std::vector<CefString> ids;
+ 				browser->GetFrameIdentifiers(ids);
+ 
+-				for (std::vector<int64>::iterator i = ids.begin(); i != ids.end(); i++)
++				for (std::vector<CefString>::iterator i = ids.begin(); i != ids.end(); i++)
+ 				{
+-					CefRefPtr<CefFrame> _frame = browser->GetFrame(*i);
++					CefRefPtr<CefFrame> _frame = browser->GetFrameByIdentifier(*i);
+ 					_frame->ExecuteJavaScript("window.onUpdateClouds && window.onUpdateClouds();", _frame->GetURL(), 0);
+ 				}
+ 
+@@ -6246,12 +6246,12 @@
+ 				std::string sLayout = std::to_string(nKeyboardLayout);
+ 				std::string sCode = "window[\"asc_current_keyboard_layout\"] = " + sLayout + ";";
+ 
+-				std::vector<int64> ids;
++				std::vector<CefString> ids;
+ 				browser->GetFrameIdentifiers(ids);
+ 
+-				for (std::vector<int64>::iterator i = ids.begin(); i != ids.end(); i++)
++				for (std::vector<CefString>::iterator i = ids.begin(); i != ids.end(); i++)
+ 				{
+-					CefRefPtr<CefFrame> _frame = browser->GetFrame(*i);
++					CefRefPtr<CefFrame> _frame = browser->GetFrameByIdentifier(*i);
+ 					_frame->ExecuteJavaScript(sCode, _frame->GetURL(), 0);
+ 				}
+ 
+@@ -6294,8 +6294,8 @@
+ 			}
+ 			else if (sMessageName == "spell_check_response")
+ 			{
+-				int64 nFrameId = NSArgumentList::GetInt64(message->GetArgumentList(), 1);
+-				CefRefPtr<CefFrame> _frame = browser->GetFrame(nFrameId);
++				std::string nFrameId = NSArgumentList::GetInt64(message->GetArgumentList(), 1);
++				CefRefPtr<CefFrame> _frame = browser->GetFrameByIdentifier(nFrameId);
+ 				if (_frame)
+ 				{
+ 					std::string sCode = "window[\"asc_nativeOnSpellCheck\"](" + message->GetArgumentList()->GetString(0).ToString() + ");";
+@@ -6376,8 +6376,8 @@
+ 			}
+ 			else if (sMessageName == "on_load_js")
+ 			{
+-				int64 frameId = NSArgumentList::GetInt64(message->GetArgumentList(), 2);
+-				CefRefPtr<CefFrame> _frame = browser->GetFrame(frameId);
++				std::string frameId = NSArgumentList::GetInt64(message->GetArgumentList(), 2);
++				CefRefPtr<CefFrame> _frame = browser->GetFrameByIdentifier(frameId);
+ 				if (_frame)
+ 				{
+ 					std::wstring sFilePath = message->GetArgumentList()->GetString(0).ToWString();
+@@ -6660,7 +6660,7 @@
+ 				CefRefPtr<CefFrame> _frame = browser->GetMainFrame();
+ 				if (!sFrameName.empty())
+ 				{
+-					_frame = browser->GetFrame(sFrameName);
++					_frame = browser->GetFrameByName(sFrameName);
+ 				}
+ 
+ 				if (!_frame)
+@@ -6801,8 +6801,7 @@
+ 					_frame = GetEditorFrame(browser);
+ 				else
+ 				{
+-					int64 nId = (int64)std::stoll(sId);
+-					_frame = browser->GetFrame(nId);
++					_frame = browser->GetFrameByIdentifier(sId);
+ 				}
+ 				bool bIsMulti = message->GetArgumentList()->GetBool(1);
+ 
+@@ -6852,8 +6851,7 @@
+ 					_frame = GetEditorFrame(browser);
+ 				else
+ 				{
+-					int64 nId = (int64)std::stoll(sId);
+-					_frame = browser->GetFrame(nId);
++					_frame = browser->GetFrameByIdentifier(sId);
+ 				}
+ 
+ 				if (_frame)
+@@ -6940,8 +6938,8 @@
+ 			}
+ 			else if (sMessageName == "file_get_hash_callback")
+ 			{
+-				int64 frameID = (int64)std::stoll(message->GetArgumentList()->GetString(1).ToString());
+-				CefRefPtr<CefFrame> _frame = browser->GetFrame(frameID);
++				CefString frameID = message->GetArgumentList()->GetString(1);
++				CefRefPtr<CefFrame> _frame = browser->GetFrameByIdentifier(frameID);
+ 
+ 				if (_frame)
+ 				{
+@@ -6963,13 +6961,13 @@
+ 				if (message->GetArgumentList()->GetSize() == 1)
+ 				{
+ 					// main view
+-					std::vector<int64> identifiers;
++					std::vector<CefString> identifiers;
+ 					browser->GetFrameIdentifiers(identifiers);
+ 
+-					for (std::vector<int64>::iterator i = identifiers.begin(); i != identifiers.end(); i++)
++					for (std::vector<CefString>::iterator i = identifiers.begin(); i != identifiers.end(); i++)
+ 					{
+-						int64 k = *i;
+-						CefRefPtr<CefFrame> frame = browser->GetFrame(k);
++						CefString k = *i;
++						CefRefPtr<CefFrame> frame = browser->GetFrameByIdentifier(k);
+ 
+ 						if (frame && (frame->GetName().ToString().find("system_asc") == 0))
+ 						{
+@@ -6997,8 +6995,8 @@
+ 				}
+ 				else
+ 				{
+-					int64 frameID = (int64)std::stoll(message->GetArgumentList()->GetString(1).ToString());
+-					CefRefPtr<CefFrame> _frame = browser->GetFrame(frameID);
++					CefString frameID = message->GetArgumentList()->GetString(1);
++					CefRefPtr<CefFrame> _frame = browser->GetFrameByIdentifier(frameID);
+ 
+ 					if (_frame)
+ 					{
+@@ -7017,13 +7015,13 @@
+ 
+ 					if (true)
+ 					{
+-						std::vector<int64> identifiers;
++						std::vector<CefString> identifiers;
+ 						browser->GetFrameIdentifiers(identifiers);
+ 
+-						for (std::vector<int64>::iterator i = identifiers.begin(); i != identifiers.end(); i++)
++						for (std::vector<CefString>::iterator i = identifiers.begin(); i != identifiers.end(); i++)
+ 						{
+-							int64 k = *i;
+-							CefRefPtr<CefFrame> _frameOP = browser->GetFrame(k);
++							CefString k = *i;
++							CefRefPtr<CefFrame> _frameOP = browser->GetFrameByIdentifier(k);
+ 
+ 							if (_frameOP && (k != frameID) && (_frameOP->GetName().ToString().find("iframe_asc.{") == 0))
+ 							{
+@@ -7137,10 +7135,10 @@
+ 				if (_frame)
+ 				{
+ 					int nType = message->GetArgumentList()->GetInt(0);
+-					int64 nFrameId = NSArgumentList::GetInt64(message->GetArgumentList(), 1);
+-					if (0 != nFrameId)
++					std::string nFrameId = NSArgumentList::GetInt64(message->GetArgumentList(), 1);
++					if (!nFrameId.empty())
+ 					{
+-						CefRefPtr<CefFrame> _frameID = browser->GetFrame(nFrameId);
++						CefRefPtr<CefFrame> _frameID = browser->GetFrameByIdentifier(nFrameId);
+ 						if (_frameID)
+ 							_frame = _frameID;
+ 					}
+@@ -7205,9 +7203,9 @@
+ 			{
+ 				int nCount = message->GetArgumentList()->GetSize();
+ 				int nIndex = 0;
+-				int64 nFrameId = NSArgumentList::GetInt64(message->GetArgumentList(), nIndex++);
++				std::string nFrameId = NSArgumentList::GetInt64(message->GetArgumentList(), nIndex++);
+ 
+-				CefRefPtr<CefFrame> _frame = browser->GetFrame(nFrameId);
++				CefRefPtr<CefFrame> _frame = browser->GetFrameByIdentifier(nFrameId);
+ 				if (!_frame)
+ 					_frame = GetEditorFrame(browser);
+ 
+@@ -7235,9 +7233,9 @@
+ 			else if (sMessageName == "set_crypto_mode")
+ 			{
+ 				int nError = message->GetArgumentList()->GetInt(0);
+-				int64 nFrameId = NSArgumentList::GetInt64(message->GetArgumentList(), 1);
++				std::string nFrameId = NSArgumentList::GetInt64(message->GetArgumentList(), 1);
+ 
+-				CefRefPtr<CefFrame> _frame = browser->GetFrame(nFrameId);
++				CefRefPtr<CefFrame> _frame = browser->GetFrameByIdentifier(nFrameId);
+ 				if (_frame)
+ 					_frame->ExecuteJavaScript(
+ 						"(function() { if (!window.on_set_crypto_mode) return; window.on_set_crypto_mode(" + std::to_string(nError) + "); delete window.on_set_crypto_mode; })();", _frame->GetURL(),
+@@ -7245,11 +7243,11 @@
+ 			}
+ 			else if (sMessageName == "get_advanced_encrypted_data")
+ 			{
+-				int64 nFrameId = NSArgumentList::GetInt64(message->GetArgumentList(), 0);
++				std::string nFrameId = NSArgumentList::GetInt64(message->GetArgumentList(), 0);
+ 				std::string sRet = message->GetArgumentList()->GetString(1);
+ 				NSStringUtils::string_replaceA(sRet, "\\", "\\\\");
+ 
+-				CefRefPtr<CefFrame> _frame = browser->GetFrame(nFrameId);
++				CefRefPtr<CefFrame> _frame = browser->GetFrameByIdentifier(nFrameId);
+ 				if (_frame)
+ 					_frame->ExecuteJavaScript(
+ 						"(function() { if (!window.on_get_advanced_encrypted_data) return; window.on_get_advanced_encrypted_data(\"" + sRet +
+@@ -7258,11 +7256,11 @@
+ 			}
+ 			else if (sMessageName == "set_advanced_encrypted_data")
+ 			{
+-				int64 nFrameId = NSArgumentList::GetInt64(message->GetArgumentList(), 0);
++				std::string nFrameId = NSArgumentList::GetInt64(message->GetArgumentList(), 0);
+ 				std::string sRet = message->GetArgumentList()->GetString(1);
+ 				NSStringUtils::string_replaceA(sRet, "\\", "\\\\");
+ 
+-				CefRefPtr<CefFrame> _frame = browser->GetFrame(nFrameId);
++				CefRefPtr<CefFrame> _frame = browser->GetFrameByIdentifier(nFrameId);
+ 				if (_frame)
+ 					_frame->ExecuteJavaScript(
+ 						"(function() { if (!window.on_set_advanced_encrypted_data) return; window.on_set_advanced_encrypted_data(\"" + sRet +
+@@ -7309,12 +7307,12 @@
+ 				}
+ 				((wchar_t*)sCode.c_str())[sCode.length() - 1] = ']';
+ 
+-				std::vector<int64> arFramesIds;
++				std::vector<CefString> arFramesIds;
+ 				browser->GetFrameIdentifiers(arFramesIds);
+ 
+-				for (std::vector<int64>::iterator i = arFramesIds.begin(); i != arFramesIds.end(); i++)
++				for (std::vector<CefString>::iterator i = arFramesIds.begin(); i != arFramesIds.end(); i++)
+ 				{
+-					CefRefPtr<CefFrame> _frame = browser->GetFrame(*i);
++					CefRefPtr<CefFrame> _frame = browser->GetFrameByIdentifier(*i);
+ 					if (_frame)
+ 						_frame->ExecuteJavaScript(L"window.AscDesktopEditor.SetDropFiles(" + sCode + L");", _frame->GetURL(), 0);
+ 				}
+@@ -7323,12 +7321,12 @@
+ 			}
+ 			else if (sMessageName == "clear_drop_files")
+ 			{
+-				std::vector<int64> arFramesIds;
++				std::vector<CefString> arFramesIds;
+ 				browser->GetFrameIdentifiers(arFramesIds);
+ 
+-				for (std::vector<int64>::iterator i = arFramesIds.begin(); i != arFramesIds.end(); i++)
++				for (std::vector<CefString>::iterator i = arFramesIds.begin(); i != arFramesIds.end(); i++)
+ 				{
+-					CefRefPtr<CefFrame> _frame = browser->GetFrame(*i);
++					CefRefPtr<CefFrame> _frame = browser->GetFrameByIdentifier(*i);
+ 					if (_frame)
+ 						_frame->ExecuteJavaScript(L"window.AscDesktopEditor.ClearDropFiles();", _frame->GetURL(), 0);
+ 				}
+@@ -7338,11 +7336,11 @@
+ 			else if (sMessageName == "on_convert_local_file")
+ 			{
+ 				std::string sFolder = message->GetArgumentList()->GetString(0).ToString();
+-				int64 nFrameId = NSArgumentList::GetInt64(message->GetArgumentList(), 1);
++				std::string nFrameId = NSArgumentList::GetInt64(message->GetArgumentList(), 1);
+ 				NSStringUtils::string_replaceA(sFolder, "\\", "\\\\");
+ 				NSStringUtils::string_replaceA(sFolder, "\"", "\\\"");
+ 
+-				CefRefPtr<CefFrame> _frame = browser->GetFrame(nFrameId);
++				CefRefPtr<CefFrame> _frame = browser->GetFrameByIdentifier(nFrameId);
+ 				if (!_frame)
+ 					return true;
+ 
+@@ -7352,14 +7350,14 @@
+ 			else if (sMessageName == "on_convert_local_file_external")
+ 			{
+ 				std::string sFile = message->GetArgumentList()->GetString(0).ToString();
+-				int64 nFrameId = NSArgumentList::GetInt64(message->GetArgumentList(), 1);
++				std::string nFrameId = NSArgumentList::GetInt64(message->GetArgumentList(), 1);
+ 				NSStringUtils::string_replaceA(sFile, "\\", "\\\\");
+ 				NSStringUtils::string_replaceA(sFile, "\"", "\\\"");
+ 
+ 				int nReturnCode = message->GetArgumentList()->GetInt(2);
+ 				int nConvertId = message->GetArgumentList()->GetInt(3);
+ 
+-				CefRefPtr<CefFrame> _frame = browser->GetFrame(nFrameId);
++				CefRefPtr<CefFrame> _frame = browser->GetFrameByIdentifier(nFrameId);
+ 				if (!_frame)
+ 					return true;
+ 
+@@ -7388,7 +7386,7 @@
+ 	private:
+ 		CefRefPtr<CefFrame> GetEditorFrame(CefRefPtr<CefBrowser> browser)
+ 		{
+-			CefRefPtr<CefFrame> _frame = browser->GetFrame("frameEditor");
++			CefRefPtr<CefFrame> _frame = browser->GetFrameByName("frameEditor");
+ 			if (_frame)
+ 				return _frame;
+ 			return browser->GetMainFrame();
+diff --git a/ChromiumBasedEditors/lib/src/cors_resource_hanler.h b/ChromiumBasedEditors/lib/src/cors_resource_hanler.h
+--- a/ChromiumBasedEditors/lib/src/cors_resource_hanler.h
++++ b/ChromiumBasedEditors/lib/src/cors_resource_hanler.h
+@@ -40,6 +40,7 @@
+ 
+ #define CEF_SUPPORT_STREAMING_CORS_RESOURCE_HANDLER
+ 
++#include "./cef_compat_types.h"
+ #include "include/cef_resource_handler.h"
+ #include "include/cef_urlrequest.h"
+ #include "include/wrapper/cef_closure_task.h"
+diff --git a/ChromiumBasedEditors/lib/src/fileconverter.h b/ChromiumBasedEditors/lib/src/fileconverter.h
+--- a/ChromiumBasedEditors/lib/src/fileconverter.h
++++ b/ChromiumBasedEditors/lib/src/fileconverter.h
+@@ -1240,7 +1240,7 @@
+ class CTextDocxConverter : public NSThreads::CBaseThread
+ {
+ public:
+-	int_64_type m_nFrameId;
++	std::string m_nFrameId;
+ 
+ 	std::wstring m_sData;
+ 	std::wstring m_sPassword;
+@@ -1254,7 +1254,7 @@
+ public:
+ 	CTextDocxConverter() : NSThreads::CBaseThread()
+ 	{
+-		m_nFrameId = 0;
++		m_nFrameId = "";
+ 		m_pManager = NULL;
+ 		m_bIsToDocx = false;
+ 		m_pCallback = NULL;
+@@ -1388,7 +1388,7 @@
+ 
+ 		m_pCallback->CTextDocxConverterCallback_OnConvert(m_sData);
+ 
+-		m_nFrameId = 0;
++		m_nFrameId = "";
+ 		m_sData = L"";
+ 		m_sPassword = L"";
+ 
+@@ -1536,7 +1536,7 @@
+ 	std::wstring m_sSrcFilePath;
+ 	int m_nOutputFormat;
+ 	std::string m_sOutputParams;
+-	int_64_type m_nFrameId;
++	std::string m_nFrameId;
+ 
+ 	bool m_bIsApplyChanges;
+ 	std::wstring m_sDstFilePath;
+@@ -1551,7 +1551,7 @@
+ 		m_nOutputFormat = -1;
+ 		m_pEvents = NULL;
+ 		m_pManager = NULL;
+-		m_nFrameId = 0;
++		m_nFrameId = "";
+ 		m_bIsApplyChanges = false;
+ 	}
+ 
+@@ -1691,7 +1691,7 @@
+ 	CAscApplicationManager* m_pManager;
+ 	IASCFileConverterExternalEvents* m_pEvents;
+ 
+-	int_64_type m_nFrameId;
++	std::string m_nFrameId;
+ 	int m_nId;
+ 
+ 	bool m_bIsOpenResult;
+@@ -1717,7 +1717,7 @@
+ 		m_nOutputFormat = -1;
+ 		m_pManager = NULL;
+ 		m_pEvents = NULL;
+-		m_nFrameId = 0;
++		m_nFrameId = "";
+ 		m_nId = 0;
+ 
+ 		m_bIsOpenResult = false;
+diff --git a/ChromiumBasedEditors/lib/src/spellchecker.cpp b/ChromiumBasedEditors/lib/src/spellchecker.cpp
+--- a/ChromiumBasedEditors/lib/src/spellchecker.cpp
++++ b/ChromiumBasedEditors/lib/src/spellchecker.cpp
+@@ -383,7 +383,7 @@
+ 
+ 	std::list<std::string>      m_arTask;
+ 	std::list<int>              m_arTaskParent;
+-	std::list<int_64_type>      m_arTaskParentFrameId;
++	std::list<std::string>      m_arTaskParentFrameId;
+ 
+ 	std::wstring                m_sUserDictionaries;
+ 	Hunhandle*                  m_pUserAllDict;
+@@ -424,7 +424,7 @@
+ 		m_oCS.DeleteCriticalSection();
+ 	}
+ 
+-	void AddTask(const int& nParentId, const std::string& sTask, int_64_type nId)
++	void AddTask(const int& nParentId, const std::string& sTask, const std::string& nId)
+ 	{
+ 		CTemporaryCS oCS(&m_oCS);
+ 
+@@ -433,7 +433,7 @@
+ 			// нужно удалить все задачи для этого редактора
+ 			std::list<std::string>::iterator iterTask = m_arTask.begin();
+ 			std::list<int>::iterator iterTaskParent = m_arTaskParent.begin();
+-			std::list<int_64_type>::iterator iterTaskParentFrame = m_arTaskParentFrameId.begin();
++			std::list<std::string>::iterator iterTaskParentFrame = m_arTaskParentFrameId.begin();
+ 
+ 			while (iterTaskParent != m_arTaskParent.end())
+ 			{
+@@ -460,7 +460,7 @@
+ 		FILE* ff = fopen(DEBUG_SPELL_CHECKER_PATH, "a+");
+ 		fprintf(ff, "add_task: %d, task: ", m_nAddTaskCounter++);
+ 		fprintf(ff, sTask.c_str());
+-		fprintf(ff, ", parent_id: %d, id: %d\n", nParentId, nId);
++		fprintf(ff, ", parent_id: %d, id: %s\n", nParentId, nId.c_str());
+ 		fclose(ff);
+ #endif
+ 	}
+@@ -481,7 +481,7 @@
+ 		int nParentId = *m_arTaskParent.begin();
+ 		m_arTaskParent.pop_front();
+ 
+-		int_64_type nFrameId = *m_arTaskParentFrameId.begin();
++		std::string nFrameId = *m_arTaskParentFrameId.begin();
+ 		m_arTaskParentFrameId.pop_front();
+ 
+ 		m_oCS.Leave();
+@@ -850,7 +850,7 @@
+ 	m_pInternal->m_pManager = pManager;
+ }
+ 
+-void CAscSpellChecker::AddTask(const int& nEditorId, const std::string& sTask, int_64_type nId)
++void CAscSpellChecker::AddTask(const int& nEditorId, const std::string& sTask, const std::string& nId)
+ {
+ 	if (m_pInternal->IsRunned())
+ 		m_pInternal->AddTask(nEditorId, sTask, nId);
+diff --git a/ChromiumBasedEditors/lib/cef_pri/cef_system.pri b/ChromiumBasedEditors/lib/cef_pri/cef_system.pri
+new file mode 100644
+--- /dev/null
++++ b/ChromiumBasedEditors/lib/cef_pri/cef_system.pri
+@@ -0,0 +1,111 @@
++# Distro CEF (OpenMandriva cef-devel) instead of the bundled CEF 109 tree.
++# libcef_dll is not compiled here: the package ships a PIC wrapper archive
++# built against this libcef. The cefclient/shared helpers are still compiled
++# in, because OnlyOffice's browser code is built on top of them.
++
++CEF_SRC_PATH = $$system(pkg-config --variable=cef_root cef)
++isEmpty(CEF_SRC_PATH):CEF_SRC_PATH = /usr/lib64/cef
++
++DEFINES += \
++    __STD_C \
++    USING_CEF_SHARED \
++    NDEBUG \
++    NO_CSR \
++    CEF_VERSION_155
++
++# int64 / uint32 / uint64 live in src/cef_compat_types.h. Do not -D them:
++# POLE's "typedef unsigned long long uint64" would become a second uint64_t.
++
++INCLUDEPATH += $$CEF_SRC_PATH
++
++LIBS += $$CEF_SRC_PATH/libcef_dll_wrapper/libcef_dll_wrapper.a
++LIBS += -L$$CEF_SRC_PATH/Release -lcef
++
++CONFIG += link_pkgconfig
++PKGCONFIG += glib-2.0 gtk+-3.0 gtk+-unix-print-3.0 atk
++LIBS += -lX11
++
++QMAKE_CXXFLAGS += -fPIC
++QMAKE_LFLAGS += "-Wl,-rpath,\'\$$ORIGIN\'"
++QMAKE_LFLAGS += "-Wl,-rpath,$$CEF_SRC_PATH/Release"
++
++# GTK cefclient/shared sources that exist in this CEF. Qt-only, Windows,
++# macOS, off-screen and cefclient's own main() are left out. extension_util
++# was removed upstream. shared/browser/resource_util_linux.cc duplicates
++# GetResourceDir from the cefclient copy. client_app_delegates_common.cc and
++# client_app_delegates_renderer.cc are provided by OnlyOffice
++# (client_scheme_wrapper.cpp, client_renderer_wrapper.cpp).
++CEF_HELPER_SOURCES = \
++    tests/cefclient/browser/base_client_handler.cc \
++    tests/cefclient/browser/binary_transfer_test.cc \
++    tests/cefclient/browser/binding_test.cc \
++    tests/cefclient/browser/browser_window.cc \
++    tests/cefclient/browser/browser_window_std_gtk.cc \
++    tests/cefclient/browser/bytes_write_handler.cc \
++    tests/cefclient/browser/client_app_delegates_browser.cc \
++    tests/cefclient/browser/client_browser.cc \
++    tests/cefclient/browser/client_handler.cc \
++    tests/cefclient/browser/client_handler_std.cc \
++    tests/cefclient/browser/client_prefs.cc \
++    tests/cefclient/browser/component_test.cc \
++    tests/cefclient/browser/config_test.cc \
++    tests/cefclient/browser/default_client_handler.cc \
++    tests/cefclient/browser/dialog_handler_gtk.cc \
++    tests/cefclient/browser/dialog_test.cc \
++    tests/cefclient/browser/hang_test.cc \
++    tests/cefclient/browser/image_cache.cc \
++    tests/cefclient/browser/main_context.cc \
++    tests/cefclient/browser/main_context_impl.cc \
++    tests/cefclient/browser/main_context_impl_posix.cc \
++    tests/cefclient/browser/main_message_loop_multithreaded_gtk.cc \
++    tests/cefclient/browser/media_router_test.cc \
++    tests/cefclient/browser/preferences_test.cc \
++    tests/cefclient/browser/print_handler_gtk.cc \
++    tests/cefclient/browser/resource_util_linux.cc \
++    tests/cefclient/browser/response_filter_test.cc \
++    tests/cefclient/browser/root_window.cc \
++    tests/cefclient/browser/root_window_create.cc \
++    tests/cefclient/browser/root_window_gtk.cc \
++    tests/cefclient/browser/root_window_manager.cc \
++    tests/cefclient/browser/root_window_views.cc \
++    tests/cefclient/browser/scheme_test.cc \
++    tests/cefclient/browser/server_test.cc \
++    tests/cefclient/browser/task_manager_test.cc \
++    tests/cefclient/browser/temp_window_x11.cc \
++    tests/cefclient/browser/test_runner.cc \
++    tests/cefclient/browser/urlrequest_test.cc \
++    tests/cefclient/browser/util_gtk.cc \
++    tests/cefclient/browser/views_menu_bar.cc \
++    tests/cefclient/browser/views_overlay_browser.cc \
++    tests/cefclient/browser/views_overlay_controls.cc \
++    tests/cefclient/browser/views_style.cc \
++    tests/cefclient/browser/views_window.cc \
++    tests/cefclient/browser/window_test.cc \
++    tests/cefclient/browser/window_test_runner.cc \
++    tests/cefclient/browser/window_test_runner_gtk.cc \
++    tests/cefclient/browser/window_test_runner_views.cc \
++    tests/cefclient/common/scheme_test_common.cc \
++    tests/cefclient/renderer/client_renderer.cc \
++    tests/cefclient/renderer/ipc_performance_test.cc \
++    tests/cefclient/renderer/performance_test.cc \
++    tests/cefclient/renderer/performance_test_tests.cc \
++    tests/shared/browser/client_app_browser.cc \
++    tests/shared/browser/file_util.cc \
++    tests/shared/browser/geometry_util.cc \
++    tests/shared/browser/main_message_loop.cc \
++    tests/shared/browser/main_message_loop_external_pump.cc \
++    tests/shared/browser/main_message_loop_external_pump_linux.cc \
++    tests/shared/browser/main_message_loop_std.cc \
++    tests/shared/browser/resource_util_posix.cc \
++    tests/shared/common/binary_value_utils.cc \
++    tests/shared/common/client_app.cc \
++    tests/shared/common/client_app_other.cc \
++    tests/shared/common/client_switches.cc \
++    tests/shared/common/string_util.cc \
++    tests/shared/renderer/client_app_renderer.cc
++
++for (cef_src, CEF_HELPER_SOURCES) {
++    exists($$CEF_SRC_PATH/$$cef_src) {
++        SOURCES += $$CEF_SRC_PATH/$$cef_src
++    }
++}
+diff --git a/ChromiumBasedEditors/lib/src/cef_compat_types.h b/ChromiumBasedEditors/lib/src/cef_compat_types.h
+new file mode 100644
+--- /dev/null
++++ b/ChromiumBasedEditors/lib/src/cef_compat_types.h
+@@ -0,0 +1,10 @@
++#pragma once
++#include <stdint.h>
++
++// CEF 109 exposed int64 / uint32 / uint64. CEF 155 has only the stdint names.
++// These are real typedefs, included by the editor sources that still use the
++// old names. A -D macro would rewrite the same tokens inside POLE, agg and
++// tiff, which define those names themselves.
++typedef int64_t int64;
++typedef uint32_t uint32;
++typedef uint64_t uint64;

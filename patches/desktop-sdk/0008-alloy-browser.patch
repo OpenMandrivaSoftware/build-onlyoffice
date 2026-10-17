@@ -1,0 +1,17 @@
+diff --git a/ChromiumBasedEditors/lib/src/cefview.cpp b/ChromiumBasedEditors/lib/src/cefview.cpp
+--- a/ChromiumBasedEditors/lib/src/cefview.cpp
++++ b/ChromiumBasedEditors/lib/src/cefview.cpp
+@@ -6978,6 +6978,12 @@
+ 	int _h = m_pInternal->m_pWidgetImpl->cef_height;
+ 
+ #ifdef CEF_VERSION_ABOVE_102
+ 	info.SetAsChild(_handle, CefRect(0, 0, _w, _h));
++#ifdef CEF_VERSION_155
++	// CEF 120+ defaults a windowed browser to Chrome style. That creates a
++	// Views BrowserView and crashes in MultiContentsView when the parent is a
++	// native Qt window. SetAsChild needs Alloy style.
++	info.runtime_style = CEF_RUNTIME_STYLE_ALLOY;
++#endif
+ 
+ 	m_pInternal->m_hideChecker.Hide(info, _handle);
+ #else

@@ -1,0 +1,79 @@
+diff --git a/common/apiBase.js b/common/apiBase.js
+index cd8bd34ea5..6291911369 100644
+--- a/common/apiBase.js
++++ b/common/apiBase.js
+@@ -2387,6 +2387,15 @@
+ 			this.SpellCheckApi.spellCheck = function (spellData) {
+ 				window["AscDesktopEditor"]["SpellCheck"](JSON.stringify(spellData));
+ 			};
++			this.SpellCheckApi.onSpellCheck = function (response) {
++				t.SpellCheck_CallBack(response);
++			};
++			// The web worker exposes this. The desktop branch never did, so
++			// HaveDictionary threw on every paint tick and OnPaint never ran.
++			this.SpellCheckApi.checkDictionary = function (lang) {
++				var langs = AscCommon.spellcheckGetLanguages();
++				return !!(langs && undefined !== langs["" + lang]);
++			};
+ 			this.SpellCheckApi.disconnect = function () {
+ 			};
+ 			this.SpellCheckApi.restart = function() {
+diff --git a/slide/Drawing/HtmlPage.js b/slide/Drawing/HtmlPage.js
+index 484a01df22..da0d580957 100644
+--- a/slide/Drawing/HtmlPage.js
++++ b/slide/Drawing/HtmlPage.js
+@@ -4874,7 +4874,14 @@
+ 			_c.m_nCurrentTimeClearCache = 0;
+ 			_c.m_oDrawingDocument.CheckFontCache();
+ 		}
+-		oThis.m_oLogicDocument.ContinueSpellCheck();
++		// Same as the word editor: a spellcheck throw must not skip the paint.
++		try
++		{
++			oThis.m_oLogicDocument.ContinueSpellCheck();
++		}
++		catch (e)
++		{
++		}
+ 	};
+ 
+ 	// Open/Save
+diff --git a/word/Drawing/HtmlPage.js b/word/Drawing/HtmlPage.js
+index 7750704c8a..ef8c236508 100644
+--- a/word/Drawing/HtmlPage.js
++++ b/word/Drawing/HtmlPage.js
+@@ -3850,8 +3850,16 @@ function CEditorPage(api)
+ 			_c.m_oDrawingDocument.CheckFontCache();
+ 		}
+ 
+-		oThis.m_oLogicDocument.ContinueSpellCheck();
+-		oThis.m_oLogicDocument.ContinueTrackRevisions();
++		// Spellcheck runs on the paint timer, before OnPaint. A throw here used
++		// to be swallowed by onTimerScroll and the page was never redrawn.
++		try
++		{
++			oThis.m_oLogicDocument.ContinueSpellCheck();
++			oThis.m_oLogicDocument.ContinueTrackRevisions();
++		}
++		catch (e)
++		{
++		}
+ 	};
+ 
+ 	this.ChangeHintProps = function()
+diff --git a/word/Editor/SpellChecker/ParagraphSpellChecker.js b/word/Editor/SpellChecker/ParagraphSpellChecker.js
+index f48bb8cb35..19666a4be8 100644
+--- a/word/Editor/SpellChecker/ParagraphSpellChecker.js
++++ b/word/Editor/SpellChecker/ParagraphSpellChecker.js
+@@ -430,7 +430,10 @@
+ 	};
+ 	CParagraphSpellChecker.prototype.HaveDictionary = function(nLang)
+ 	{
+-		return editor.SpellCheckApi.checkDictionary(nLang);
++		var api = editor && editor.SpellCheckApi;
++		if (!api || typeof api.checkDictionary !== "function")
++			return false;
++		return api.checkDictionary(nLang);
+ 	};
+ 	CParagraphSpellChecker.prototype.SkipCurrentWord = function()
+ 	{

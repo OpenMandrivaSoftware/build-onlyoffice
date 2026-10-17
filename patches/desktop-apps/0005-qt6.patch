@@ -1,0 +1,227 @@
+diff --git a/win-linux/ASCDocumentEditor.pro b/win-linux/ASCDocumentEditor.pro
+--- a/win-linux/ASCDocumentEditor.pro
++++ b/win-linux/ASCDocumentEditor.pro
+@@ -46,7 +46,12 @@
+     QMAKE_EXTRA_COMPILERS += glib_resources
+ }
+ linux {
+-    QT += x11extras
++    greaterThan(QT_MAJOR_VERSION, 5) {
++        QT += gui-private
++        INCLUDEPATH += $$PWD/src/qtcomp/qt6
++    } else {
++        QT += x11extras
++    }
+ }
+ 
+ HEADERS += \
+diff --git a/win-linux/defaults.pri b/win-linux/defaults.pri
+--- a/win-linux/defaults.pri
++++ b/win-linux/defaults.pri
+@@ -197,7 +197,12 @@
+ include($$CORE_ROOT_DIR/../desktop-sdk/ChromiumBasedEditors/videoplayerlib/videoplayerlib_deps.pri)
+ 
+ core_linux {
+-    QT += network x11extras dbus
++    greaterThan(QT_MAJOR_VERSION, 5) {
++        QT += network gui-private dbus
++        INCLUDEPATH += $$PWD/src/qtcomp/qt6
++    } else {
++        QT += network x11extras dbus
++    }
+ 
+     QMAKE_LFLAGS += "-Wl,-rpath,\'\$$ORIGIN\'"
+     QMAKE_LFLAGS += "-Wl,-rpath,\'\$$ORIGIN/converter\'"
+diff --git a/win-linux/src/cthemes.cpp b/win-linux/src/cthemes.cpp
+--- a/win-linux/src/cthemes.cpp
++++ b/win-linux/src/cthemes.cpp
+@@ -36,7 +36,11 @@
+ 
+ #include "cthemes.h"
+ #ifdef Q_OS_LINUX
++// Qt's `signals` macro collides with GObject struct members of the same name.
++# pragma push_macro("signals")
++# undef signals
+ # include <gtk/gtk.h>
++# pragma pop_macro("signals")
+ # include "cascapplicationmanagerwrapper.h"
+ #endif
+ #include "defines.h"
+@@ -53,9 +57,11 @@
+ #include <QApplication>
+ #include <QJsonArray>
+ #ifdef Q_OS_LINUX
+-#undef signals
++# pragma push_macro("signals")
++# undef signals
+ # include <gio/gio.h>
+ # include <glib.h>
++# pragma pop_macro("signals")
+ #endif
+ 
+ #define QSTRING_FROM_WSTR(s) QString::fromStdWString(s)
+diff --git a/win-linux/src/platform_linux/gtkprintdialog.cpp b/win-linux/src/platform_linux/gtkprintdialog.cpp
+--- a/win-linux/src/platform_linux/gtkprintdialog.cpp
++++ b/win-linux/src/platform_linux/gtkprintdialog.cpp
+@@ -48,8 +48,6 @@
+ #define PDF_PRINTER_NAME "Print to File"
+ #define LPR_PRINTER_NAME "Print to LPR"
+ 
+-typedef QPagedPaintDevice::PageSize PageSize;
+-typedef QPrinter::Unit QUnit;
+ typedef uint16_t WORD;
+ 
+ 
+@@ -222,7 +220,7 @@
+ 
+     auto qt_printer_name = m_printer->printerName();
+     auto qt_resolution = m_printer->resolution();
+-    auto qt_orient = m_printer->orientation();
++    auto qt_orient = m_printer->pageLayout().orientation();
+     auto qt_duplex = m_printer->duplex();
+     auto qt_color_mode = m_printer->colorMode();
+     auto qt_copy_count = m_printer->copyCount();
+@@ -346,13 +344,11 @@
+     page_setup = gtk_page_setup_new();
+     {
+         GtkUnit unit = GtkUnit::GTK_UNIT_MM;
+-        QUnit qt_unit(QUnit::Millimeter);
+-        double left_in, top_in, right_in, bottom_in;
+-        m_printer->getPageMargins(&left_in, &top_in, &right_in, &bottom_in, qt_unit);
+-        gtk_page_setup_set_left_margin(page_setup, left_in, unit);
+-        gtk_page_setup_set_top_margin(page_setup, top_in, unit);
+-        gtk_page_setup_set_right_margin(page_setup, right_in, unit);
+-        gtk_page_setup_set_bottom_margin(page_setup, bottom_in, unit);
++        const QMarginsF pageMargins = m_printer->pageLayout().margins(QPageLayout::Millimeter);
++        gtk_page_setup_set_left_margin(page_setup, pageMargins.left(), unit);
++        gtk_page_setup_set_top_margin(page_setup, pageMargins.top(), unit);
++        gtk_page_setup_set_right_margin(page_setup, pageMargins.right(), unit);
++        gtk_page_setup_set_bottom_margin(page_setup, pageMargins.bottom(), unit);
+ 
+         QPageSize ps = m_printer->pageLayout().pageSize();
+         QSizeF page_size = ps.size(QPageSize::Millimeter);
+@@ -501,7 +497,7 @@
+                         QPrinter::LastPageFirst : QPrinter::FirstPageFirst);
+ 
+             int n_copies = gtk_print_settings_get_n_copies(settings);
+-            m_printer->setNumCopies(n_copies);
++            m_printer->setCopyCount(n_copies);
+ 
+             const char* output_uri = gtk_print_settings_get(settings, GTK_PRINT_SETTINGS_OUTPUT_URI);
+             auto path = QUrl::fromPercentEncoding(QByteArray(output_uri)).replace("file://", "");
+@@ -516,21 +512,18 @@
+         }
+         page_setup = gtk_print_unix_dialog_get_page_setup(GTK_PRINT_UNIX_DIALOG(dialog));
+         {
+-            QUnit qt_unit(QUnit::Millimeter);
+             GtkUnit unit = GtkUnit::GTK_UNIT_MM;
+             gdouble left = gtk_page_setup_get_left_margin(page_setup, unit);
+             gdouble top = gtk_page_setup_get_top_margin(page_setup, unit);
+             gdouble right = gtk_page_setup_get_right_margin(page_setup, unit);
+             gdouble bottom = gtk_page_setup_get_bottom_margin(page_setup, unit);
+-            m_printer->setPageMargins(left, top, right, bottom, qt_unit);
++            m_printer->setPageMargins(QMarginsF(left, top, right, bottom), QPageLayout::Millimeter);
+ 
+             GtkPaperSize *paper_size = gtk_page_setup_get_paper_size(page_setup);
+             //const char* paper_name = gtk_paper_size_get_display_name(paper_size);
+             gdouble width = gtk_paper_size_get_width(paper_size, unit);
+             gdouble height = gtk_paper_size_get_height(paper_size, unit);
+-            QPageSize ps(QSizeF(width, height), QPageSize::Millimeter);
+-            m_printer->setPaperName(ps.name());
+-            m_printer->setPaperSize(QSizeF(width, height), qt_unit);
++            m_printer->setPageSize(QPageSize(QSizeF(width, height), QPageSize::Millimeter));
+ 
+             GtkPageOrientation orient = gtk_page_setup_get_orientation(page_setup);
+             QPageLayout plt = m_printer->pageLayout();
+diff --git a/win-linux/src/utils.cpp b/win-linux/src/utils.cpp
+--- a/win-linux/src/utils.cpp
++++ b/win-linux/src/utils.cpp
+@@ -341,18 +341,22 @@
+         return dx + dy;
+     };
+ 
++    const QList<QScreen *> screens = QApplication::screens();
++    if (screens.isEmpty())
++        return QRect();
++
+     int closestScreen = 0;
+-    int shortestDistance = pointToRect(leftTop, QApplication::desktop()->screenGeometry(0));
++    int shortestDistance = pointToRect(leftTop, screens.at(0)->geometry());
+ 
+-    for (int i = 0; ++i < QApplication::desktop()->screenCount(); ) {
+-        int thisDistance = pointToRect(leftTop, QApplication::desktop()->screenGeometry(i));
++    for (int i = 1; i < screens.size(); ++i) {
++        int thisDistance = pointToRect(leftTop, screens.at(i)->geometry());
+         if (thisDistance < shortestDistance) {
+             shortestDistance = thisDistance;
+             closestScreen = i;
+         }
+     }
+ 
+-    return QApplication::desktop()->screenGeometry(closestScreen);
++    return screens.at(closestScreen)->geometry();
+ #else
+     POINT lt{leftTop.x(), leftTop.y()};
+     MONITORINFO mi{sizeof(MONITORINFO)};
+diff --git a/win-linux/src/windows/ceditorwindow.cpp b/win-linux/src/windows/ceditorwindow.cpp
+--- a/win-linux/src/windows/ceditorwindow.cpp
++++ b/win-linux/src/windows/ceditorwindow.cpp
+@@ -438,15 +438,17 @@
+     const int border = CX11Decoration::effectiveFrameMargin();
+     int x = cursor.x();
+     x -= AscAppManager::isRtlEnabled() ? width() - CAPTURED_WINDOW_OFFSET_X - border : CAPTURED_WINDOW_OFFSET_X + border;
+-    QMouseEvent _event(QEvent::MouseButtonRelease, cursor, Qt::LeftButton, Qt::LeftButton, Qt::NoModifier);
+-    QApplication::sendEvent(AscAppManager::mainWindow(), &_event);
++    // Qt 6 QMouseEvent is not assignable. The old one-point constructor treated
++    // that point as both the local and the global position.
++    QMouseEvent releaseEvent(QEvent::MouseButtonRelease, cursor, cursor, Qt::LeftButton, Qt::LeftButton, Qt::NoModifier);
++    QApplication::sendEvent(AscAppManager::mainWindow(), &releaseEvent);
+     setGeometry(QRect(QPoint(x, cursor.y() - CAPTURED_WINDOW_OFFSET_Y - border), size()));
+     Q_ASSERT(m_boxTitleBtns != nullptr);
+     QPoint pt_in_title = (m_boxTitleBtns->geometry().topLeft() + QPoint(CAPTURED_WINDOW_OFFSET_X + border, CAPTURED_WINDOW_OFFSET_Y + border));
+-    _event = {QEvent::MouseButtonPress, pt_in_title, Qt::LeftButton, Qt::LeftButton, Qt::NoModifier};
+-    CX11Decoration::dispatchMouseDown(&_event);
+-    _event = {QEvent::MouseMove, cursor, Qt::LeftButton, Qt::LeftButton, Qt::NoModifier};
+-    CX11Decoration::dispatchMouseMove(&_event);
++    QMouseEvent pressEvent(QEvent::MouseButtonPress, pt_in_title, pt_in_title, Qt::LeftButton, Qt::LeftButton, Qt::NoModifier);
++    CX11Decoration::dispatchMouseDown(&pressEvent);
++    QMouseEvent moveEvent(QEvent::MouseMove, cursor, cursor, Qt::LeftButton, Qt::LeftButton, Qt::NoModifier);
++    CX11Decoration::dispatchMouseMove(&moveEvent);
+ #endif
+ }
+ 
+diff --git a/win-linux/src/windows/platform_linux/cwindowplatform.cpp b/win-linux/src/windows/platform_linux/cwindowplatform.cpp
+--- a/win-linux/src/windows/platform_linux/cwindowplatform.cpp
++++ b/win-linux/src/windows/platform_linux/cwindowplatform.cpp
+@@ -202,7 +202,7 @@
+     return CWindowBase::event(event);
+ }
+ 
+-bool CWindowPlatform::nativeEvent(const QByteArray &ev_type, void *msg, long *res)
++bool CWindowPlatform::nativeEvent(const QByteArray &ev_type, void *msg, qintptr *res)
+ {
+     if (ev_type == "xcb_generic_event_t") {
+         xcb_generic_event_t *ev = static_cast<xcb_generic_event_t*>(msg);
+diff --git a/win-linux/src/windows/platform_linux/cwindowplatform.h b/win-linux/src/windows/platform_linux/cwindowplatform.h
+--- a/win-linux/src/windows/platform_linux/cwindowplatform.h
++++ b/win-linux/src/windows/platform_linux/cwindowplatform.h
+@@ -66,7 +66,7 @@
+     void onWindowActivate(bool is_active);
+     virtual void onMinimizeEvent() override;
+     virtual bool event(QEvent *event) override;
+-    virtual bool nativeEvent(const QByteArray&, void*, long*) final;
++    virtual bool nativeEvent(const QByteArray&, void*, qintptr*) final;
+     virtual void setScreenScalingFactor(double, bool resize = true) override;
+     virtual void paintEvent(QPaintEvent *event) override;
+     virtual void onLayoutDirectionChanged() = 0;
+diff --git a/win-linux/src/qtcomp/qt6/QX11Info b/win-linux/src/qtcomp/qt6/QX11Info
+new file mode 100644
+--- /dev/null
++++ b/win-linux/src/qtcomp/qt6/QX11Info
+@@ -0,0 +1,6 @@
++#pragma once
++
++// Qt 6 removed the public <QX11Info> header (Qt5 x11extras). The same class
++// lives in Qt Gui's private extras. This file is on INCLUDEPATH only for Qt 6,
++// so the existing #include <QX11Info> lines keep working.
++#include <QtGui/private/qtx11extras_p.h>

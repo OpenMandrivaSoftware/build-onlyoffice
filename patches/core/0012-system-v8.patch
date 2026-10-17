@@ -1,0 +1,96 @@
+diff --git a/Common/3dParty/v8/v8.pri b/Common/3dParty/v8/v8.pri
+index 11c7c72d1b..aa7d474456 100644
+--- a/Common/3dParty/v8/v8.pri
++++ b/Common/3dParty/v8/v8.pri
+@@ -1,5 +1,12 @@
+ CORE_V8_PATH_OVERRIDE=$$PWD
+-!v8_version_60:CONFIG += v8_version_89
++
++# Use the distro libv8 instead of fetching and building the v8 8.9 tree
++# that upstream drops into ../v8_89. OpenMandriva's libv8 7.4 matches the
++# "89+" wrapper (NewDefaultPlatform, Utf8Value(Isolate), kEagerCompile)
++# except ArrayBuffer backing stores, which are gated off below.
++unix:!mac:!android:!build_xp:CONFIG += use_system_v8
++
++!use_system_v8:!v8_version_60:CONFIG += v8_version_89
+ 
+ v8_version_89 {
+     CONFIG += c++14
+@@ -33,9 +40,11 @@ core_android {
+     isEqual(CORE_BUILDS_PLATFORM_PREFIX, android_x86_64):   CORE_V8_PATH_LIBS=$$CORE_V8_PATH_LIBS/x86_64
+ }
+ 
+-INCLUDEPATH += \
+-    $$CORE_V8_PATH_INCLUDE \
+-    $$CORE_V8_PATH_INCLUDE/include
++!use_system_v8 {
++    INCLUDEPATH += \
++        $$CORE_V8_PATH_INCLUDE \
++        $$CORE_V8_PATH_INCLUDE/include
++}
+ 
+ core_windows {
+     CORE_V8_PATH_LIBS = $$CORE_V8_PATH_INCLUDE/out.gn/$$CORE_BUILDS_PLATFORM_PREFIX/$$CORE_BUILDS_CONFIGURATION_PREFIX/obj
+@@ -56,7 +65,13 @@ core_windows {
+ }
+ 
+ core_linux {
+-    use_v8_monolith {
++    use_system_v8 {
++        DEFINES += V8_VERSION_89_PLUS
++        DEFINES += DISABLE_MEMORY_LIMITATION
++        DEFINES += V8_NO_BACKING_STORE
++        DEFINES += V8_SYSTEM_STARTUP_DATA
++        LIBS += -lv8 -lv8_libplatform -lv8_libbase
++    } else:use_v8_monolith {
+         LIBS += -L$$CORE_V8_PATH_LIBS -lv8_monolith
+     } else {
+         SNAPSHOT_LIB=v8_snapshot
+diff --git a/DesktopEditor/doctrenderer/js_internal/js_base.pri b/DesktopEditor/doctrenderer/js_internal/js_base.pri
+index 3f7eff90e5..076f8b3ffb 100644
+--- a/DesktopEditor/doctrenderer/js_internal/js_base.pri
++++ b/DesktopEditor/doctrenderer/js_internal/js_base.pri
+@@ -93,7 +93,7 @@ SOURCES += $$PWD/js_logger.cpp
+             $$V8_INSPECTOR_PATH
+ 
+         #inspector lib
+-        !use_v8_monolith {
++        !use_v8_monolith:!use_system_v8 {
+             LIBS += -L$$CORE_V8_PATH_LIBS/src/inspector -linspector
+         }
+ 
+diff --git a/DesktopEditor/doctrenderer/js_internal/v8/v8_base.h b/DesktopEditor/doctrenderer/js_internal/v8/v8_base.h
+index 367904b2e2..15ecfd30d0 100644
+--- a/DesktopEditor/doctrenderer/js_internal/v8/v8_base.h
++++ b/DesktopEditor/doctrenderer/js_internal/v8/v8_base.h
+@@ -127,8 +127,19 @@ public:
+ 		m_pAllocator = NULL;
+ 
+ #ifndef V8_OS_XP
++#ifdef V8_SYSTEM_STARTUP_DATA
++		// Distro libv8 keeps natives_blob.bin and snapshot_blob.bin next to
++		// the library, and links system ICU, so the bundled icudtl.dat lookup
++		// must not run.
++		const char* v8DataDir = "/usr/lib64";
++		if (!NSFile::CFileBinary::Exists(L"/usr/lib64/snapshot_blob.bin") &&
++			NSFile::CFileBinary::Exists(L"/usr/lib/snapshot_blob.bin"))
++			v8DataDir = "/usr/lib";
++		v8::V8::InitializeExternalStartupData(v8DataDir);
++#else
+ 		v8::V8::InitializeICUDefaultLocation(sPrA.c_str());
+ 		v8::V8::InitializeExternalStartupData(sPrA.c_str());
++#endif
+ 	#ifdef V8_VERSION_89_PLUS
+ 		m_platform = v8::platform::NewDefaultPlatform();
+ 		v8::V8::InitializePlatform(m_platform.get());
+@@ -652,8 +663,10 @@ namespace NSJSBase
+ 	};
+ 
+ #ifdef V8_VERSION_89_PLUS
++#ifndef V8_NO_BACKING_STORE
+ 	#define V8_ARRAY_BUFFER_USE_BACKING_STORE
+ #endif
++#endif
+ 
+ #ifdef V8_ARRAY_BUFFER_USE_BACKING_STORE
+ 	static void V8AllocatorDeleter(void* data, size_t length, void*)

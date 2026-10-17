@@ -65,8 +65,43 @@ for i in core desktop-sdk desktop-apps sdkjs web-apps; do
 	fi
 done
 
+# gumbo, katana and hyphen are cloned only while checking out a missing core
+# tree. The compile below does not download them.
+for req in \
+	core/Common/3dParty/html/gumbo-parser/src \
+	core/Common/3dParty/html/katana-parser/src \
+	core/Common/3dParty/hyphen/hyphen/hyphen.h
+do
+	if [ ! -e "$req" ]; then
+		echo "missing $req" >&2
+		echo "It is vendored at checkout. The compile does not download it." >&2
+		exit 1
+	fi
+done
+
 cd core
-for i in UnicodeConverter/UnicodeConverter.pro Common/kernel.pro Common/Network/network.pro DesktopEditor/graphics/pro/graphics.pro PdfFile/PdfFile.pro DjVuFile/DjVuFile.pro XpsFile/XpsFile.pro Common/cfcpp/cfcpp.pro OfficeCryptReader/ooxml_crypt/ooxml_crypt.pro DesktopEditor/xmlsec/src/ooxmlsignature.pro DesktopEditor/doctrenderer/doctrenderer.pro; do
+# qmake/make only. Upstream fetch scripts clone md4c, brotli, harfbuzz and the
+# iWork stack; those are linked from the distro instead. This loop does not
+# download.
+for i in UnicodeConverter/UnicodeConverter.pro Common/kernel.pro Common/Network/network.pro DesktopEditor/graphics/pro/graphics.pro PdfFile/PdfFile.pro DjVuFile/DjVuFile.pro XpsFile/XpsFile.pro Common/cfcpp/cfcpp.pro OfficeCryptReader/ooxml_crypt/ooxml_crypt.pro DesktopEditor/xmlsec/src/ooxmlsignature.pro OFDFile/OFDFile.pro DocxRenderer/DocxRenderer.pro DesktopEditor/doctrenderer/doctrenderer.pro \
+	MsBinaryFile/Projects/VbaFormatLib/Linux/VbaFormatLib.pro \
+	OOXML/Projects/Linux/DocxFormatLib/DocxFormatLib.pro \
+	OOXML/Projects/Linux/XlsbFormatLib/XlsbFormatLib.pro \
+	OOXML/Projects/Linux/PPTXFormatLib/PPTXFormatLib.pro \
+	OOXML/Projects/Linux/BinDocument/BinDocument.pro \
+	MsBinaryFile/Projects/DocFormatLib/Linux/DocFormatLib.pro \
+	MsBinaryFile/Projects/PPTFormatLib/Linux/PPTFormatLib.pro \
+	MsBinaryFile/Projects/XlsFormatLib/Linux/XlsFormatLib.pro \
+	OdfFile/Projects/Linux/OdfFormatLib.pro \
+	RtfFile/Projects/Linux/RtfFormatLib.pro \
+	TxtFile/Projects/Linux/TxtXmlFormatLib.pro \
+	Fb2File/Fb2File.pro \
+	HtmlFile2/HtmlFile2.pro \
+	EpubFile/CEpubFile.pro \
+	Apple/IWork.pro \
+	OdfFile/Reader/Converter/StarMath2OOXML/StarMath2OOXML.pro \
+	HwpFile/HWPFile.pro \
+	X2tConverter/build/Qt/X2tConverter.pro; do
 	echo "=== Building core/$(dirname $i) ==="
 	EXTRAOPTS=""
 	cd $(dirname $i)
@@ -77,22 +112,16 @@ for i in UnicodeConverter/UnicodeConverter.pro Common/kernel.pro Common/Network/
 done
 cd ..
 
-# Drop internal cef prebuilt binaries, and pull in ours
-# (correct architecture, ungoogled and no GTK dep)
-#rm -rf desktop-sdk/ChromiumBasedEditors/lib/src/cef/linux
-#mkdir -p desktop-sdk/ChromiumBasedEditors/lib/src/cef/linux
-#cp -a /usr/lib64/cef/* desktop-sdk/ChromiumBasedEditors/lib/src/cef/linux/
-#rm -rf core/Common/3dParty/cef
-#mkdir -p core/Common/3dParty/cef/build
-#ln -s /usr/lib64/cef/Release/libcef.so core/Common/3dParty/cef/build/
+# ChromiumBasedEditors links the distro CEF (see cef_pri/cef_system.pri).
+# cef_base.pri used to overwrite CEF_SRC_PATH with the bundled 109 tree.
 
 echo '=== Building ChromiumBasedEditors ==='
 cd desktop-sdk/ChromiumBasedEditors/lib
-qmake ascdocumentscore.pro CEF_SRC_PATH=$(pwd)/src/cef/linux CONFIG+=core_linux CONFIG+=c++2a $(pkg-config --cflags-only-I gtk+-3.0 |sed -e 's,-I,INCLUDEPATH+=,g') DEFINES+=_LINUX CONFIG+=core_linux QMAKE_CXXFLAGS_RELEASE-=-Werror=format-security
+qmake ascdocumentscore.pro CONFIG+=core_linux CONFIG+=c++2a $(pkg-config --cflags-only-I gtk+-3.0 |sed -e 's,-I,INCLUDEPATH+=,g') DEFINES+=_LINUX CONFIG+=core_linux QMAKE_CXXFLAGS_RELEASE-=-Werror=format-security
 make -j16
 
 echo '=== Building ascdocumentscore_helpers ==='
-qmake ascdocumentscore_helper.pro CEF_SRC_PATH=$(pwd)/src/cef/linux CONFIG+=core_linux CONFIG+=c++2a $(pkg-config --cflags-only-I gtk+-3.0 |sed -e 's,-I,INCLUDEPATH+=,g') DEFINES+=_LINUX CONFIG+=core_linux QMAKE_CXXFLAGS_RELEASE-=-Werror=format-security
+qmake ascdocumentscore_helper.pro CONFIG+=core_linux CONFIG+=c++2a $(pkg-config --cflags-only-I gtk+-3.0 |sed -e 's,-I,INCLUDEPATH+=,g') DEFINES+=_LINUX CONFIG+=core_linux QMAKE_CXXFLAGS_RELEASE-=-Werror=format-security
 make -j16
 cd -
 cd desktop-sdk/ChromiumBasedEditors/videoplayerlib
@@ -109,5 +138,9 @@ cd desktop-apps/win-linux
 qmake ASCDocumentEditor.pro DEFINES+=_LINUX CONFIG+=core_linux CONFIG+=c++2a $(pkg-config --cflags-only-I glib-2.0 |sed -e 's,-I,INCLUDEPATH+=,g')
 make -j16
 cd ../..
+
+# Concatenates sources already in the sdkjs tree. It does not fetch or minify.
+echo '=== Deploying sdkjs ==='
+python sdkjs/build/build.py --desktop
 
 echo '=== DONE ==='

@@ -1,0 +1,14 @@
+diff --git a/win-linux/ASCDocumentEditor.pro b/win-linux/ASCDocumentEditor.pro
+--- a/win-linux/ASCDocumentEditor.pro
++++ b/win-linux/ASCDocumentEditor.pro
+@@ -56,3 +56,11 @@
+ HEADERS += \
+     src/prop/cmainwindowimpl.h
++
++# libcef replaces localtime_r and finds the libc original with
++# dlsym(RTLD_NEXT), which only sees libraries loaded after libcef.
++# It has to be the first DT_NEEDED. Otherwise CefInitialize deadlocks
++# in pthread_once inside that wrapper.
++unix:!mac {
++    LIBS = -Wl,--no-as-needed $$system(pkg-config --libs cef) -Wl,--as-needed $$LIBS
++}

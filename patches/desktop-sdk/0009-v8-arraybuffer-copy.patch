@@ -1,0 +1,49 @@
+diff --git a/ChromiumBasedEditors/lib/src/cefwrapper/client_renderer_wrapper.cpp b/ChromiumBasedEditors/lib/src/cefwrapper/client_renderer_wrapper.cpp
+--- a/ChromiumBasedEditors/lib/src/cefwrapper/client_renderer_wrapper.cpp
++++ b/ChromiumBasedEditors/lib/src/cefwrapper/client_renderer_wrapper.cpp
+@@ -318,5 +318,18 @@
+ 	IMPLEMENT_REFCOUNTING(CAscCefV8ArrayBufferReleaseCallback);
+ };
++
++// CreateArrayBuffer returns nullptr when the V8 sandbox is enabled, which
++// is the default in CEF 155. The document then never receives Editor.bin.
++static CefRefPtr<CefV8Value> CreateOpenedFileBuffer(BYTE* pData, size_t nLen)
++{
++#if defined(CEF_VERSION_155) || (defined(CEF_VERSION_MAJOR) && CEF_VERSION_MAJOR >= 133)
++	CefRefPtr<CefV8Value> value = CefV8Value::CreateArrayBufferWithCopy((void*)pData, nLen);
++	delete[] pData;
++	return value;
++#else
++	return CefV8Value::CreateArrayBuffer((void*)pData, nLen, new CAscCefV8ArrayBufferReleaseCallback());
++#endif
++}
+ #endif
+ 
+ namespace NSCommon
+@@ -755,7 +768,7 @@
+ 						for (DWORD i = 0; i < dwFileLen; ++i)
+ 							retval->SetValue(i, CefV8Value::CreateInt(pData[i]));
+ #else
+-						retval = CefV8Value::CreateArrayBuffer((void*)pData, (size_t)dwFileLen, new CAscCefV8ArrayBufferReleaseCallback());
++						retval = CreateOpenedFileBuffer(pData, (size_t)dwFileLen);
+ #endif
+ 					}
+ 					else
+@@ -4414,7 +4427,7 @@
+ 					NSFile::CFileBinary::ReadAllBytes(sFilePath, &pData, dwFileLen);
+ 
+ 					if (0 != dwFileLen)
+-						retval = CefV8Value::CreateArrayBuffer((void*)pData, (size_t)dwFileLen, new CAscCefV8ArrayBufferReleaseCallback());
++						retval = CreateOpenedFileBuffer(pData, (size_t)dwFileLen);
+ 					else
+ 						retval = CefV8Value::CreateUndefined();
+ 				}
+@@ -4886,7 +4899,7 @@
+ 							arr->SetValue(i, CefV8Value::CreateInt(pData[i]));
+ 						retval->SetValue("content", arr, V8_PROPERTY_ATTRIBUTE_NONE);
+ #else
+-						retval->SetValue("content", CefV8Value::CreateArrayBuffer((void*)pData, (size_t)dwFileLen, new CAscCefV8ArrayBufferReleaseCallback()), V8_PROPERTY_ATTRIBUTE_NONE);
++						retval->SetValue("content", CreateOpenedFileBuffer(pData, (size_t)dwFileLen), V8_PROPERTY_ATTRIBUTE_NONE);
+ #endif
+ 					}
+ 				}

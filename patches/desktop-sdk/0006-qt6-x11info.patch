@@ -1,0 +1,15 @@
+diff --git a/ChromiumBasedEditors/lib/qt_wrapper/src/qcefview_media.cpp b/ChromiumBasedEditors/lib/qt_wrapper/src/qcefview_media.cpp
+--- a/ChromiumBasedEditors/lib/qt_wrapper/src/qcefview_media.cpp
++++ b/ChromiumBasedEditors/lib/qt_wrapper/src/qcefview_media.cpp
+@@ -56,7 +56,11 @@
+ }
+ 
+ #ifdef _LINUX
++#ifndef QT_VERSION_6
+ #include <QX11Info>
++#else
++#include <QtGui/private/qtx11extras_p.h>
++#endif
+ QWidget* getMainPanel(QWidget* widget, int& x, int& y)
+ {
+ 	x = 0; y = 0;
