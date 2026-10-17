@@ -1,6 +1,6 @@
 diff -up desktop-apps/win-linux/ASCDocumentEditor.pro.p1~ desktop-apps/win-linux/ASCDocumentEditor.pro
---- desktop-apps/win-linux/ASCDocumentEditor.pro.p1~	2026-02-15 22:55:27.679893577 +0100
-+++ desktop-apps/win-linux/ASCDocumentEditor.pro	2026-02-15 22:55:27.753173162 +0100
+--- desktop-apps/win-linux/ASCDocumentEditor.pro.p1~	2026-06-11 00:20:05.944262135 +0200
++++ desktop-apps/win-linux/ASCDocumentEditor.pro	2026-06-11 00:20:06.110351154 +0200
 @@ -45,6 +45,9 @@ core_linux {
      glib_resources.variable_out = SOURCES
      QMAKE_EXTRA_COMPILERS += glib_resources
@@ -12,9 +12,9 @@ diff -up desktop-apps/win-linux/ASCDocumentEditor.pro.p1~ desktop-apps/win-linux
  HEADERS += \
      src/prop/cmainwindowimpl.h
 diff -up desktop-apps/win-linux/src/components/ctabpanel.h.p1~ desktop-apps/win-linux/src/components/ctabpanel.h
---- desktop-apps/win-linux/src/components/ctabpanel.h.p1~	2026-02-15 22:55:27.697426064 +0100
-+++ desktop-apps/win-linux/src/components/ctabpanel.h	2026-02-15 22:55:27.753268864 +0100
-@@ -4,7 +4,6 @@
+--- desktop-apps/win-linux/src/components/ctabpanel.h.p1~	2026-06-11 00:20:05.974807539 +0200
++++ desktop-apps/win-linux/src/components/ctabpanel.h	2026-06-11 00:20:06.110551236 +0200
+@@ -39,7 +39,6 @@
  #include <QWidget>
  #include <QTimer>
  
@@ -23,18 +23,18 @@ diff -up desktop-apps/win-linux/src/components/ctabpanel.h.p1~ desktop-apps/win-
  
  class CTabPanel : public QWidget
 diff -up desktop-apps/win-linux/src/cthemes.cpp.p1~ desktop-apps/win-linux/src/cthemes.cpp
---- desktop-apps/win-linux/src/cthemes.cpp.p1~	2026-02-15 22:55:27.697426064 +0100
-+++ desktop-apps/win-linux/src/cthemes.cpp	2026-02-15 22:56:25.422184817 +0100
-@@ -2,8 +2,6 @@
+--- desktop-apps/win-linux/src/cthemes.cpp.p1~	2026-06-11 00:20:05.974807539 +0200
++++ desktop-apps/win-linux/src/cthemes.cpp	2026-06-11 00:27:24.446886459 +0200
+@@ -37,8 +37,6 @@
  #include "cthemes.h"
  #ifdef Q_OS_LINUX
  # include <gtk/gtk.h>
 -# include <gio/gio.h>
 -# include <glib.h>
+ # include "cascapplicationmanagerwrapper.h"
  #endif
  #include "defines.h"
- #include "utils.h"
-@@ -18,6 +16,11 @@
+@@ -54,6 +52,11 @@
  #include <QPalette>
  #include <QApplication>
  #include <QJsonArray>
@@ -46,14 +46,3 @@ diff -up desktop-apps/win-linux/src/cthemes.cpp.p1~ desktop-apps/win-linux/src/c
  
  #define QSTRING_FROM_WSTR(s) QString::fromStdWString(s)
  #define REGISTRY_THEME_KEY "UITheme"
-diff -up desktop-apps/win-linux/src/windows/platform_linux/cwindowplatform.cpp.p1~ desktop-apps/win-linux/src/windows/platform_linux/cwindowplatform.cpp
---- desktop-apps/win-linux/src/windows/platform_linux/cwindowplatform.cpp.p1~	2026-02-15 22:55:27.700613913 +0100
-+++ desktop-apps/win-linux/src/windows/platform_linux/cwindowplatform.cpp	2026-02-15 22:55:27.753518727 +0100
-@@ -36,6 +36,7 @@
- #include "utils.h"
- #include <QTimer>
- #include <QPainter>
-+#include <QPainterPath>
- #include <QX11Info>
- #include <xcb/xcb.h>
- 
