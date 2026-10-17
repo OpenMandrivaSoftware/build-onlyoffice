@@ -2,11 +2,8 @@
 
 # FIXME Even once it starts up, some stuff needs to be fixed:
 # * Internal copy of outdated zlib at core/OfficeUtils/src/zlib-1.2.11
-# * Internal copies of multiple versions(!) of outdated freetype
-#   core/DesktopEditor/freetype-2.5.2
-#   core/DesktopEditor/freetype-2.10.4
-#   Use of internal freetype headers in multiple places, making it
-#   harder to use system freetype
+# * FreeType source trees are still in the checkout (2.5.2, 2.5.3, 2.10.4)
+#   but Linux links system libfreetype and does not compile them.
 # * Internal copy of agg core/DesktopEditor/agg-2.4
 # * Possible internal copies of libxml/libxmlsec (are those modified?)
 #   core/DesktopEditor/xml core/DesktopEditor/xmlsec

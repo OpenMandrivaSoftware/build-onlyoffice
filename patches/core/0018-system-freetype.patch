@@ -1,0 +1,542 @@
+--- a/DesktopEditor/graphics/pro/freetype.pri
++++ b/DesktopEditor/graphics/pro/freetype.pri
+@@ -1,3 +1,15 @@
++# Linux uses the system FreeType (pkg-config name freetype2). The checkout
++# still contains 2.5.2, freetype_names/2.5.3 and 2.10.4; other platforms
++# compile 2.10.4. Callers use the public API, so the internal headers are
++# not required.
++unix:!mac:!android {
++	CONFIG += link_pkgconfig
++	PKGCONFIG += freetype2
++	!config_zlip_image {
++		LIBS += -lz
++		CONFIG += config_zlip_image
++	}
++} else {
+ DEFINES += FT_CONFIG_OPTION_SYSTEM_ZLIB
+ DEFINES += FT2_BUILD_LIBRARY
+ FREETYPE_VERSION=2.10.4
+@@ -10,28 +22,22 @@
+ 
+ !config_zlip_image {
+     OFFICEUTILS_PATH = $$PWD/../../../OfficeUtils
+-	# Bundled FreeType is built with FT_CONFIG_OPTION_SYSTEM_ZLIB. Linux
+-	# satisfies that with the system zlib; other platforms compile 1.2.11.
+-	unix:!mac:!android {
+-		LIBS += -lz
+-	} else {
+-		INCLUDEPATH += \
+-		    $$OFFICEUTILS_PATH/src/zlib-1.2.11 \
+-			$$OFFICEUTILS_PATH/src
+-
+-		SOURCES += \
+-		    $$OFFICEUTILS_PATH/src/zlib-1.2.11/crc32.c \
+-			$$OFFICEUTILS_PATH/src/zlib-1.2.11/adler32.c \
+-			$$OFFICEUTILS_PATH/src/zlib-1.2.11/deflate.c \
+-			$$OFFICEUTILS_PATH/src/zlib-1.2.11/inffast.c \
+-			$$OFFICEUTILS_PATH/src/zlib-1.2.11/inflate.c \
+-			$$OFFICEUTILS_PATH/src/zlib-1.2.11/inftrees.c \
+-			$$OFFICEUTILS_PATH/src/zlib-1.2.11/trees.c \
+-			$$OFFICEUTILS_PATH/src/zlib-1.2.11/zutil.c \
+-			$$OFFICEUTILS_PATH/src/zlib-1.2.11/uncompr.c \
+-			$$OFFICEUTILS_PATH/src/zlib-1.2.11/compress.c \
+-			$$OFFICEUTILS_PATH/src/zlib_addon.c
+-	}
++	INCLUDEPATH += \
++	    $$OFFICEUTILS_PATH/src/zlib-1.2.11 \
++		$$OFFICEUTILS_PATH/src
++
++	SOURCES += \
++	    $$OFFICEUTILS_PATH/src/zlib-1.2.11/crc32.c \
++		$$OFFICEUTILS_PATH/src/zlib-1.2.11/adler32.c \
++		$$OFFICEUTILS_PATH/src/zlib-1.2.11/deflate.c \
++		$$OFFICEUTILS_PATH/src/zlib-1.2.11/inffast.c \
++		$$OFFICEUTILS_PATH/src/zlib-1.2.11/inflate.c \
++		$$OFFICEUTILS_PATH/src/zlib-1.2.11/inftrees.c \
++		$$OFFICEUTILS_PATH/src/zlib-1.2.11/trees.c \
++		$$OFFICEUTILS_PATH/src/zlib-1.2.11/zutil.c \
++		$$OFFICEUTILS_PATH/src/zlib-1.2.11/uncompr.c \
++		$$OFFICEUTILS_PATH/src/zlib-1.2.11/compress.c \
++		$$OFFICEUTILS_PATH/src/zlib_addon.c
+ 
+     CONFIG += config_zlip_image
+ }
+@@ -82,3 +88,4 @@
+ } else {
+ 	SOURCES += $$FREETYPE_PATH/builds/unix/ftsystem.c
+ }
++}
+--- a/DesktopEditor/fontengine/FontPath.h
++++ b/DesktopEditor/fontengine/FontPath.h
+@@ -39,8 +39,9 @@
+ #include <memory>
+ #include <string.h>
+ #include <stdlib.h>
+-#include "ftbitmap.h"
+-#include "ftimage.h"
++#include <ft2build.h>
++#include FT_BITMAP_H
++#include FT_IMAGE_H
+ 
+ #include "../graphics/pro/Fonts.h"
+ 
+--- a/DesktopEditor/fontengine/FontFile.h
++++ b/DesktopEditor/fontengine/FontFile.h
+@@ -44,6 +44,7 @@
+ #include FT_TRUETYPE_TABLES_H
+ #include FT_XFREE86_H
+ #include FT_ADVANCES_H
++#include FT_PARAMETER_TAGS_H
+ 
+ #include "FontPath.h"
+ #include "GlyphString.h"
+--- a/DesktopEditor/fontengine/FontFile.cpp
++++ b/DesktopEditor/fontengine/FontFile.cpp
+@@ -33,7 +33,8 @@
+  * SPDX-License-Identifier: AGPL-3.0-only
+  */
+ #include "FontManager.h"
+-#include "internal/ftobjs.h"
++#include FT_FONT_FORMATS_H
++#include <cstring>
+ #include "../common/Types.h"
+ #include "../common/File.h"
+ 
+@@ -713,12 +714,12 @@
+ {
+ 	m_bHintsSupport = TRUE;
+ 
+-	if (!m_pFace || !m_pFace->driver || !m_pFace->driver->clazz)
++	if (!m_pFace)
+ 		return;
+ 
+-	std::string sName(m_pFace->driver->clazz->root.module_name);
++	const char* sName = FT_Get_Font_Format(m_pFace);
+ 
+-	if (sName != "truetype")
++	if (!sName || std::strcmp(sName, "TrueType") != 0)
+ 	{
+ 		m_bHintsSupport = FALSE;
+ 		return;
+--- a/DesktopEditor/fontengine/FontManager.cpp
++++ b/DesktopEditor/fontengine/FontManager.cpp
+@@ -35,9 +35,8 @@
+ #include "ApplicationFonts.h"
+ #include "../common/File.h"
+ #include <stdio.h>
+-#include "ftsnames.h"
+ #include FT_LCD_FILTER_H
+-#include "internal/tttypes.h"
++#include FT_TRUETYPE_TABLES_H
+ 
+ ///////////////////////////////////////////////////////////////////////////////////////////////////////
+ CFontStream::CFontStream() : NSFonts::IFontStream()
+@@ -905,9 +904,12 @@
+ 	dMax = m_pFont->m_pFace->ascender;
+ 	if (FT_IS_SFNT(m_pFont->m_pFace))
+ 	{
+-		TT_Face ttface = (TT_Face)m_pFont->m_pFace;
+-		dMin = ttface->header.yMin;
+-		dMax = ttface->header.yMax;
++		TT_Header* header = (TT_Header*)FT_Get_Sfnt_Table(m_pFont->m_pFace, ft_sfnt_head);
++		if (header)
++		{
++			dMin = header->yMin;
++			dMax = header->yMax;
++		}
+ 	}
+ }
+ 
+--- a/DesktopEditor/fontengine/ApplicationFonts.cpp
++++ b/DesktopEditor/fontengine/ApplicationFonts.cpp
+@@ -37,8 +37,8 @@
+ #include "../common/Directory.h"
+ #include "../common/SystemUtils.h"
+ #include FT_SFNT_NAMES_H
+-#include "internal/tttypes.h"
+-#include "internal/ftstream.h"
++#include FT_TRUETYPE_TABLES_H
++#include FT_TRUETYPE_IDS_H
+ #include "fontdictionaryworker.h"
+ #include "../common/ByteBuilder.h"
+ #include "../../UnicodeConverter/UnicodeConverter.h"
+@@ -1306,20 +1306,19 @@
+ 
+ 		if (pFace && FT_IS_SFNT(pFace))
+ 		{
+-			TT_Face pTTFace = (TT_Face)pFace;
++			FT_UInt nNamesCount = FT_Get_Sfnt_Name_Count(pFace);
+ 
+-			int nNamesCount = (int)pTTFace->num_names;
+-			TT_NameRec* pNameRecs = pTTFace->name_table.names;
+-
+-			for (int nNameIndex = 0; nNameIndex < nNamesCount; ++nNameIndex)
++			for (FT_UInt nNameIndex = 0; nNameIndex < nNamesCount; ++nNameIndex)
+ 			{
+-				TT_NameRec* rec = pNameRecs + nNameIndex;
++				FT_SfntName rec;
++				if (FT_Get_Sfnt_Name(pFace, nNameIndex, &rec))
++					continue;
+ 
+-				if (rec->nameID != TT_NAME_ID_FONT_FAMILY || rec->stringLength <= 0)
++				if (rec.name_id != TT_NAME_ID_FONT_FAMILY || rec.string_len == 0 || !rec.string)
+ 					continue;
+ 
+ 				std::string sEncoding = "";
+-				switch (rec->platformID)
++				switch (rec.platform_id)
+ 				{
+ 				case TT_PLATFORM_APPLE_UNICODE:
+ 				{
+@@ -1332,7 +1331,7 @@
+ 				}
+ 				case TT_PLATFORM_MICROSOFT:
+ 				{
+-					switch (rec->encodingID)
++					switch (rec.encoding_id)
+ 					{
+ 					case TT_MS_ID_SYMBOL_CS:
+ 					case TT_MS_ID_UNICODE_CS:
+@@ -1361,21 +1360,9 @@
+ 
+ 				if (!sEncoding.empty())
+ 				{
+-					FT_Stream stream = pTTFace->name_table.stream;
+-					FT_Memory memory = pFace->memory;
+-					FT_Error error = 0;
+-
+-					if ( FT_QNEW_ARRAY ( rec->string, rec->stringLength ) ||
+-						 FT_STREAM_SEEK( rec->stringOffset )              ||
+-						 FT_STREAM_READ( rec->string, rec->stringLength ) )
+-					{
+-						FT_FREE( rec->string );
+-						rec->stringLength = 0;
+-					}
+-					else
+ 					{
+ 						NSUnicodeConverter::CUnicodeConverter oConverter;
+-						std::wstring sNameW = oConverter.toUnicode((char*)rec->string, (unsigned int)rec->stringLength, sEncoding.c_str());
++						std::wstring sNameW = oConverter.toUnicode((char*)rec.string, (unsigned int)rec.string_len, sEncoding.c_str());
+ 
+ 						if (std::wstring::npos == sNameW.find(wsFamilyName) && std::wstring::npos == wsFamilyName.find(sNameW))
+ 						{
+--- a/DesktopEditor/fontengine/TextShaper_p.h
++++ b/DesktopEditor/fontengine/TextShaper_p.h
+@@ -35,7 +35,7 @@
+ #pragma once
+ 
+ #include <ft2build.h>
+-#include "ftsnames.h"
++#include FT_SFNT_NAMES_H
+ #include FT_OUTLINE_H
+ #include FT_SIZES_H
+ #include FT_GLYPH_H
+@@ -45,12 +45,8 @@
+ #include FT_ADVANCES_H
+ #include FT_LCD_FILTER_H
+ #include FT_DRIVER_H
+-#include <freetype/internal/tttypes.h>
+-#include "ftmodapi.h"
+-
+-#include FT_SFNT_NAMES_H
+-#include "internal/tttypes.h"
+-#include "internal/ftstream.h"
++#include FT_MODULE_H
++#include FT_PARAMETER_TAGS_H
+ 
+ void GetUnicodeFromUTF16BE(char* Data, unsigned int Length, int*& DataU, unsigned int& DataULen)
+ {
+@@ -234,20 +230,19 @@
+ 
+ 	if (pFace && FT_IS_SFNT(pFace))
+ 	{
+-		TT_Face pTTFace = (TT_Face)pFace;
++		FT_UInt nNamesCount = FT_Get_Sfnt_Name_Count(pFace);
+ 
+-		int nNamesCount = (int)pTTFace->num_names;
+-		TT_NameRec* pNameRecs = pTTFace->name_table.names;
+-
+-		for (int nNameIndex = 0; nNameIndex < nNamesCount; ++nNameIndex)
++		for (FT_UInt nNameIndex = 0; nNameIndex < nNamesCount; ++nNameIndex)
+ 		{
+-			TT_NameRec* rec = pNameRecs + nNameIndex;
++			FT_SfntName rec;
++			if (FT_Get_Sfnt_Name(pFace, nNameIndex, &rec))
++				continue;
+ 
+-			if (rec->nameID != TT_NAME_ID_FONT_FAMILY || rec->stringLength <= 0)
++			if (rec.name_id != TT_NAME_ID_FONT_FAMILY || rec.string_len == 0 || !rec.string)
+ 				continue;
+ 
+ 			const char* sEncoding = 0;
+-			switch (rec->platformID)
++			switch (rec.platform_id)
+ 			{
+ 			case TT_PLATFORM_APPLE_UNICODE:
+ 			{
+@@ -260,7 +255,7 @@
+ 			}
+ 			case TT_PLATFORM_MICROSOFT:
+ 			{
+-				switch (rec->encodingID)
++				switch (rec.encoding_id)
+ 				{
+ 				case TT_MS_ID_SYMBOL_CS:
+ 				case TT_MS_ID_UNICODE_CS:
+@@ -287,27 +282,10 @@
+ 				break;
+ 			}
+ 
+-			if (0 != sEncoding)
++			if (0 != sEncoding && 0 == strcmp(sEncoding, "UTF-16BE"))
+ 			{
+-				FT_Stream stream = pTTFace->name_table.stream;
+-				FT_Memory memory = pFace->memory;
+-				FT_Error error = 0;
+-
+-				if ( FT_QNEW_ARRAY ( rec->string, rec->stringLength ) ||
+-					 FT_STREAM_SEEK( rec->stringOffset )              ||
+-					 FT_STREAM_READ( rec->string, rec->stringLength ) )
+-				{
+-					FT_FREE( rec->string );
+-					rec->stringLength = 0;
+-				}
+-				else
+-				{
+-					if (0 == strcmp(sEncoding, "UTF-16BE"))
+-					{
+-						GetUnicodeFromUTF16BE((char*)rec->string, (unsigned int)rec->stringLength, UName, ULen);
+-						return;
+-					}
+-				}
++				GetUnicodeFromUTF16BE((char*)rec.string, (unsigned int)rec.string_len, UName, ULen);
++				return;
+ 			}
+ 		}
+ 	}
+--- a/DesktopEditor/fontengine/TextShaper.cpp
++++ b/DesktopEditor/fontengine/TextShaper.cpp
+@@ -35,6 +35,55 @@
+ 
+ #include "./TextShaper.h"
+ #include "./TextShaper_p.h"
++#include <mutex>
++#include <unordered_map>
++
++namespace
++{
++	struct FtFaceHook
++	{
++		FT_Library library;
++		int refs;
++	};
++
++	std::mutex g_ft_lib_mutex;
++	std::unordered_map<FT_Library, int> g_ft_lib_refs;
++
++	void ft_lib_track_new(FT_Library library)
++	{
++		if (!library)
++			return;
++		std::lock_guard<std::mutex> lock(g_ft_lib_mutex);
++		g_ft_lib_refs[library] = 1;
++	}
++
++	void ft_lib_track_ref(FT_Library library)
++	{
++		std::lock_guard<std::mutex> lock(g_ft_lib_mutex);
++		auto it = g_ft_lib_refs.find(library);
++		if (it != g_ft_lib_refs.end())
++			it->second++;
++	}
++
++	void ft_lib_track_forget(FT_Library library)
++	{
++		std::lock_guard<std::mutex> lock(g_ft_lib_mutex);
++		g_ft_lib_refs.erase(library);
++	}
++
++	// Remaining count after the drop, or -1 when this library is not tracked.
++	int ft_lib_track_unref(FT_Library library)
++	{
++		std::lock_guard<std::mutex> lock(g_ft_lib_mutex);
++		auto it = g_ft_lib_refs.find(library);
++		if (it == g_ft_lib_refs.end())
++			return -1;
++		int left = --(it->second);
++		if (left <= 0)
++			g_ft_lib_refs.erase(it);
++		return left;
++	}
++}
+ 
+ namespace NSShaper
+ {
+@@ -173,22 +222,37 @@
+ 	void* FT_Library_Init()
+ 	{
+ 		FT_Library library = NULL;
+-		FT_Init_FreeType(&library);
++		if (FT_Init_FreeType(&library))
++			return NULL;
+ 		FT_Library_SetLcdFilter(library, FT_LCD_FILTER_DEFAULT);
++		ft_lib_track_new(library);
+ 		return library;
+ 	}
+-	void FT_Library_Destroy(void* library)
++	void FT_Library_Destroy(void* library_)
+ 	{
+-		::FT_Done_FreeType((FT_Library)library);
++		FT_Library library = (FT_Library)library_;
++		if (!library)
++			return;
++		ft_lib_track_forget(library);
++		::FT_Done_FreeType(library);
+ 	}
+ 	void FT_Library_Reference(void* library)
+ 	{
+ 		FT_Reference_Library((FT_Library)library);
++		ft_lib_track_ref((FT_Library)library);
+ 	}
+ 	void FT_Library_UnReference(void* library_)
+ 	{
+ 		FT_Library library = (FT_Library)library_;
+-		if (library->refcount == 1)
++		if (!library)
++			return;
++		int left = ft_lib_track_unref(library);
++		if (left < 0)
++		{
++			::FT_Done_Library(library);
++			return;
++		}
++		if (left == 0)
+ 			::FT_Done_FreeType(library);
+ 		else
+ 			::FT_Done_Library(library);
+@@ -228,6 +292,11 @@
+ 		if (error)
+ 			return NULL;
+ 
++		FtFaceHook* hook = new FtFaceHook;
++		hook->library = (FT_Library)library;
++		hook->refs = 1;
++		face->generic.data = hook;
++		face->generic.finalizer = NULL;
+ 		return face;
+ 	}
+ 
+@@ -239,12 +308,25 @@
+ 	void FT_Done_Face_With_Library(void* face)
+ 	{
+ 		FT_Face ftface = (FT_Face)face;
+-		FT_Library library = ftface->driver->root.library;
++		if (!ftface)
++			return;
+ 
+-		bool bIsNeedUnreferenceLibrary = (1 == ftface->internal->refcount) ? true : false;
++		FtFaceHook* hook = (FtFaceHook*)ftface->generic.data;
++		FT_Library library = hook ? hook->library : NULL;
++		bool bLastRef = true;
++		if (hook)
++		{
++			hook->refs--;
++			bLastRef = hook->refs <= 0;
++			if (bLastRef)
++			{
++				ftface->generic.data = NULL;
++				delete hook;
++			}
++		}
+ 		::FT_Done_Face(ftface);
+ 
+-		if (bIsNeedUnreferenceLibrary)
++		if (bLastRef && library)
+ 			FT_Library_UnReference(library);
+ 	}
+ 
+@@ -442,9 +524,12 @@
+ 		int nHeader_yMax = face->ascender;
+ 		if (face && FT_IS_SFNT(face))
+ 		{
+-			TT_Face ttface = (TT_Face)face;
+-			nHeader_yMin = ttface->header.yMin;
+-			nHeader_yMax = ttface->header.yMax;
++			TT_Header* header = (TT_Header*)FT_Get_Sfnt_Table(face, ft_sfnt_head);
++			if (header)
++			{
++				nHeader_yMin = header->yMin;
++				nHeader_yMax = header->yMax;
++			}
+ 		}
+ 
+ 		//isSymbolic
+@@ -713,8 +798,15 @@
+ 			}
+ 			else
+ 			{
+-				FT_Reference_Face((FT_Face)face);
+-				pFont = hb_ft_font_create((FT_Face)face, _hb_ft_face_destroy_js);
++				FT_Face ftface = (FT_Face)face;
++				FtFaceHook* hook = (FtFaceHook*)ftface->generic.data;
++				if (hook && FT_Reference_Face(ftface) == 0)
++				{
++					hook->refs++;
++					pFont = hb_ft_font_create(ftface, _hb_ft_face_destroy_js);
++				}
++				else
++					pFont = hb_ft_font_create(ftface, NULL);
+ 			}
+ 			hb_ft_font_set_funcs(pFont);
+ 			font = (void*)pFont;
+--- a/DesktopEditor/raster/heif/heif.h
++++ b/DesktopEditor/raster/heif/heif.h
+@@ -35,7 +35,7 @@
+ 
+ #include "../BgraFrame.h"
+ #include <libheif/heif.h>
+-#include "../../UnicodeConverter/UnicodeConverter.h"
++#include "../../../UnicodeConverter/UnicodeConverter.h"
+ 
+ namespace NSHeif {
+ 	class GRAPHICS_DECL CHeifFile {
+--- a/XpsFile/XpsFile.pro
++++ b/XpsFile/XpsFile.pro
+@@ -54,9 +54,14 @@
+         -lshell32
+ }
+ 
+-INCLUDEPATH += \
+-    $$CORE_ROOT_DIR/DesktopEditor/freetype-2.10.4/include \
+-    $$CORE_ROOT_DIR/DesktopEditor/freetype-2.10.4/include/freetype
++unix:!mac:!android {
++	CONFIG += link_pkgconfig
++	PKGCONFIG += freetype2
++} else {
++	INCLUDEPATH += \
++	    $$CORE_ROOT_DIR/DesktopEditor/freetype-2.10.4/include \
++	    $$CORE_ROOT_DIR/DesktopEditor/freetype-2.10.4/include/freetype
++}
+ 
+ HEADERS += \
+     XpsFile.h \
+--- a/OFDFile/OFDFile.pro
++++ b/OFDFile/OFDFile.pro
+@@ -57,9 +57,14 @@
+         -lshell32
+ }
+ 
+-INCLUDEPATH += \
+-	$$CORE_ROOT_DIR/DesktopEditor/freetype-2.10.4/include \
+-	$$CORE_ROOT_DIR/DesktopEditor/freetype-2.10.4/include/freetype
++unix:!mac:!android {
++	CONFIG += link_pkgconfig
++	PKGCONFIG += freetype2
++} else {
++	INCLUDEPATH += \
++		$$CORE_ROOT_DIR/DesktopEditor/freetype-2.10.4/include \
++		$$CORE_ROOT_DIR/DesktopEditor/freetype-2.10.4/include/freetype
++}
+ 
+ HEADERS += \
+ 	OFDFile.h \
