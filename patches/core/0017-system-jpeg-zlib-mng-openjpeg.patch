@@ -1,0 +1,453 @@
+--- a/DesktopEditor/graphics/pro/raster.pri
++++ b/DesktopEditor/graphics/pro/raster.pri
+@@ -70,16 +70,19 @@
+ }
+ 
+ INCLUDEPATH += \
+-	$$LIB_GRAPHICS_PRI_PATH/cximage/jasper/include \
+-	$$LIB_GRAPHICS_PRI_PATH/cximage/jpeg
++	$$LIB_GRAPHICS_PRI_PATH/cximage/jasper/include
+ 
+-# The cximage tree ships libpng 1.5.26. On Linux the public headers come from
+-# the system libpng 1.6 (harfbuzz's include path), so compiling the bundled
+-# sources makes every PNG report "built with 1.6 but running with 1.5".
++# CxImage ships libjpeg 8c (2011), libpng 1.5.26 and libmng 1.0.10, plus a
++# private zlib 1.2.11. Linux links the system libraries. The jpeg directory
++# has to stay off the include path, or <jpeglib.h> still resolves to the
++# bundled header (harfbuzz does not add a jpeg path of its own).
+ unix:!mac:!android {
+-	LIBS += -lpng16
++	LIBS += -lpng16 -ljpeg -lz
++	!disable_cximage_mng:LIBS += -lmng
+ } else {
+-	INCLUDEPATH += $$LIB_GRAPHICS_PRI_PATH/cximage/png
++	INCLUDEPATH += \
++		$$LIB_GRAPHICS_PRI_PATH/cximage/jpeg \
++		$$LIB_GRAPHICS_PRI_PATH/cximage/png
+ }
+ 
+ HEADERS += \
+@@ -92,6 +95,7 @@
+ 	$$PWD/../../raster/BgraFrame.cpp \
+ 		$$PWD/../../raster/ImageFileFormatChecker.cpp
+ 
++!unix|mac|android {
+ SOURCES += \
+ 	$$LIB_GRAPHICS_PRI_PATH/cximage/jpeg/wrtarga.c \
+ 	$$LIB_GRAPHICS_PRI_PATH/cximage/jpeg/wrrle.c \
+@@ -161,8 +165,10 @@
+ 	$$LIB_GRAPHICS_PRI_PATH/cximage/jpeg/cjpeg.c \
+ 	$$LIB_GRAPHICS_PRI_PATH/cximage/jpeg/ckconfig.c \
+ 	$$LIB_GRAPHICS_PRI_PATH/cximage/jpeg/djpeg.c
++}
+ 
+ !disable_cximage_mng {
++	!unix|mac|android {
+ SOURCES += \
+ 	$$LIB_GRAPHICS_PRI_PATH/cximage/mng/libmng_callback_xs.c \
+ 	$$LIB_GRAPHICS_PRI_PATH/cximage/mng/libmng_chunk_descr.c \
+@@ -183,6 +189,7 @@
+ 	$$LIB_GRAPHICS_PRI_PATH/cximage/mng/libmng_trace.c \
+ 	$$LIB_GRAPHICS_PRI_PATH/cximage/mng/libmng_write.c \
+ 	$$LIB_GRAPHICS_PRI_PATH/cximage/mng/libmng_zlib.c
++	}
+ }
+ 
+ !unix|mac|android {
+@@ -397,22 +404,25 @@
+ 
+ !config_zlip_image {
+ 	OFFICEUTILS_PATH = $$PWD/../../../OfficeUtils
+-	INCLUDEPATH += \
+-		$$OFFICEUTILS_PATH/src/zlib-1.2.11 \
+-		$$OFFICEUTILS_PATH/src
+-
+-	SOURCES += \
+-		$$OFFICEUTILS_PATH/src/zlib-1.2.11/crc32.c \
+-		$$OFFICEUTILS_PATH/src/zlib-1.2.11/adler32.c \
+-		$$OFFICEUTILS_PATH/src/zlib-1.2.11/deflate.c \
+-		$$OFFICEUTILS_PATH/src/zlib-1.2.11/inffast.c \
+-		$$OFFICEUTILS_PATH/src/zlib-1.2.11/inflate.c \
+-		$$OFFICEUTILS_PATH/src/zlib-1.2.11/inftrees.c \
+-		$$OFFICEUTILS_PATH/src/zlib-1.2.11/trees.c \
+-		$$OFFICEUTILS_PATH/src/zlib-1.2.11/zutil.c \
+-		$$OFFICEUTILS_PATH/src/zlib-1.2.11/uncompr.c \
+-		$$OFFICEUTILS_PATH/src/zlib-1.2.11/compress.c \
+-		$$OFFICEUTILS_PATH/src/zlib_addon.c
++	# Linux links system zlib (-lz above). Other platforms compile 1.2.11.
++	!unix|mac|android {
++		INCLUDEPATH += \
++			$$OFFICEUTILS_PATH/src/zlib-1.2.11 \
++			$$OFFICEUTILS_PATH/src
++
++		SOURCES += \
++			$$OFFICEUTILS_PATH/src/zlib-1.2.11/crc32.c \
++			$$OFFICEUTILS_PATH/src/zlib-1.2.11/adler32.c \
++			$$OFFICEUTILS_PATH/src/zlib-1.2.11/deflate.c \
++			$$OFFICEUTILS_PATH/src/zlib-1.2.11/inffast.c \
++			$$OFFICEUTILS_PATH/src/zlib-1.2.11/inflate.c \
++			$$OFFICEUTILS_PATH/src/zlib-1.2.11/inftrees.c \
++			$$OFFICEUTILS_PATH/src/zlib-1.2.11/trees.c \
++			$$OFFICEUTILS_PATH/src/zlib-1.2.11/zutil.c \
++			$$OFFICEUTILS_PATH/src/zlib-1.2.11/uncompr.c \
++			$$OFFICEUTILS_PATH/src/zlib-1.2.11/compress.c \
++			$$OFFICEUTILS_PATH/src/zlib_addon.c
++	}
+ 
+ 	CONFIG += config_zlip_image
+ }
+--- a/DesktopEditor/graphics/pro/freetype.pri
++++ b/DesktopEditor/graphics/pro/freetype.pri
+@@ -10,22 +10,28 @@
+ 
+ !config_zlip_image {
+     OFFICEUTILS_PATH = $$PWD/../../../OfficeUtils
+-	INCLUDEPATH += \
+-	    $$OFFICEUTILS_PATH/src/zlib-1.2.11 \
+-		$$OFFICEUTILS_PATH/src
++	# Bundled FreeType is built with FT_CONFIG_OPTION_SYSTEM_ZLIB. Linux
++	# satisfies that with the system zlib; other platforms compile 1.2.11.
++	unix:!mac:!android {
++		LIBS += -lz
++	} else {
++		INCLUDEPATH += \
++		    $$OFFICEUTILS_PATH/src/zlib-1.2.11 \
++			$$OFFICEUTILS_PATH/src
+ 
+-    SOURCES += \
+-	    $$OFFICEUTILS_PATH/src/zlib-1.2.11/crc32.c \
+-		$$OFFICEUTILS_PATH/src/zlib-1.2.11/adler32.c \
+-		$$OFFICEUTILS_PATH/src/zlib-1.2.11/deflate.c \
+-		$$OFFICEUTILS_PATH/src/zlib-1.2.11/inffast.c \
+-		$$OFFICEUTILS_PATH/src/zlib-1.2.11/inflate.c \
+-		$$OFFICEUTILS_PATH/src/zlib-1.2.11/inftrees.c \
+-		$$OFFICEUTILS_PATH/src/zlib-1.2.11/trees.c \
+-		$$OFFICEUTILS_PATH/src/zlib-1.2.11/zutil.c \
+-		$$OFFICEUTILS_PATH/src/zlib-1.2.11/uncompr.c \
+-		$$OFFICEUTILS_PATH/src/zlib-1.2.11/compress.c \
+-		$$OFFICEUTILS_PATH/src/zlib_addon.c
++		SOURCES += \
++		    $$OFFICEUTILS_PATH/src/zlib-1.2.11/crc32.c \
++			$$OFFICEUTILS_PATH/src/zlib-1.2.11/adler32.c \
++			$$OFFICEUTILS_PATH/src/zlib-1.2.11/deflate.c \
++			$$OFFICEUTILS_PATH/src/zlib-1.2.11/inffast.c \
++			$$OFFICEUTILS_PATH/src/zlib-1.2.11/inflate.c \
++			$$OFFICEUTILS_PATH/src/zlib-1.2.11/inftrees.c \
++			$$OFFICEUTILS_PATH/src/zlib-1.2.11/trees.c \
++			$$OFFICEUTILS_PATH/src/zlib-1.2.11/zutil.c \
++			$$OFFICEUTILS_PATH/src/zlib-1.2.11/uncompr.c \
++			$$OFFICEUTILS_PATH/src/zlib-1.2.11/compress.c \
++			$$OFFICEUTILS_PATH/src/zlib_addon.c
++	}
+ 
+     CONFIG += config_zlip_image
+ }
+--- a/OfficeUtils/OfficeUtils.pri
++++ b/OfficeUtils/OfficeUtils.pri
+@@ -45,9 +45,17 @@
+ 
+ INCLUDEPATH += \
+     $$PWD/src/zlib-1.2.11/contrib/minizip \
+-    $$PWD/src/zlib-1.2.11 \
+     $$PWD/src
+ 
++# Keep the bundled minizip and zlib_addon.c. Linux links system zlib instead
++# of compiling zlib 1.2.11. The 1.2.11 directory must stay off the include
++# path, or <zlib.h> / "zlib.h" still resolve to the bundled header.
++unix:!mac:!android {
++    LIBS += -lz
++} else {
++    INCLUDEPATH += $$PWD/src/zlib-1.2.11
++}
++
+ SOURCES +=  \
+     $$PWD/src/OfficeUtils.cpp \
+     $$PWD/src/ZipBuffer.cpp \
+@@ -65,6 +73,7 @@
+     $$PWD/src/zlib-1.2.11/contrib/minizip/iowin32.c
+ }
+ build_all_zlib {
++    !unix|mac|android {
+ SOURCES += \
+     $$PWD/src/zlib-1.2.11/adler32.c \
+     $$PWD/src/zlib-1.2.11/compress.c \
+@@ -81,6 +90,7 @@
+     $$PWD/src/zlib-1.2.11/trees.c \
+     $$PWD/src/zlib-1.2.11/uncompr.c \
+     $$PWD/src/zlib-1.2.11/zutil.c
++    }
+ }	
+ 	
+ HEADERS +=  \
+--- a/OfficeUtils/src/ZipUtilsCP.h
++++ b/OfficeUtils/src/ZipUtilsCP.h
+@@ -57,6 +57,9 @@
+ #include "zlib-1.2.11/contrib/minizip/iowin32.h"
+ #endif
+ #include <zlib.h>
++#ifdef _LINUX
++#include "zlib_addon.h"
++#endif
+ 
+ namespace ZLibZipUtils
+ {
+--- a/OfficeUtils/src/zlib_addon.h
++++ b/OfficeUtils/src/zlib_addon.h
+@@ -40,5 +40,12 @@
+ #define ZLIB_ADDON_FLAG_WINDOWS_SHARED_WRITE    2
+ #endif
+ 
++/* Implemented in zlib_addon.c. C++ callers must use the C symbol. */
++#ifdef __cplusplus
++extern "C" {
++#endif
+ void zlip_set_addition_flag(int flag);
+ int zlip_get_addition_flag();
++#ifdef __cplusplus
++}
++#endif
+--- a/OfficeUtils/src/zlib-1.2.11/contrib/minizip/unzip.c
++++ b/OfficeUtils/src/zlib-1.2.11/contrib/minizip/unzip.c
+@@ -73,6 +73,10 @@
+ #endif
+ 
+ #include "zlib.h"
++/* System zlib.h does not pull in the OnlyOffice read-only flag. */
++#ifdef _LINUX
++#include "zlib_addon.h"
++#endif
+ #include "unzip.h"
+ 
+ #ifdef STDC
+--- a/OfficeUtils/src/zlib-1.2.11/contrib/minizip/ioapibuf.h
++++ b/OfficeUtils/src/zlib-1.2.11/contrib/minizip/ioapibuf.h
+@@ -1,6 +1,10 @@
+ #include <string.h>
+ 
++#ifdef _LINUX
++#include <zlib.h>
++#else
+ #include "../../zlib.h"
++#endif
+ #include "ioapi.h"
+ 
+ #ifdef __cplusplus
+--- a/DesktopEditor/cximage/zlib/zlib.h
++++ b/DesktopEditor/cximage/zlib/zlib.h
+@@ -1 +1,5 @@
+-﻿#include "../../../OfficeUtils/src/zlib-1.2.11/zlib.h"
++﻿#ifdef _LINUX
++#include <zlib.h>
++#else
++#include "../../../OfficeUtils/src/zlib-1.2.11/zlib.h"
++#endif
+--- a/DesktopEditor/cximage/tiff/tif_jpeg.c
++++ b/DesktopEditor/cximage/tiff/tif_jpeg.c
+@@ -84,8 +84,13 @@
+ # define HAVE_BOOLEAN            /* prevent jmorecfg.h from redefining it */
+ #endif
+ 
++#ifdef _LINUX
++#include <jpeglib.h>
++#include <jerror.h>
++#else
+ #include "../jpeg/jpeglib.h"
+ #include "../jpeg/jerror.h"
++#endif
+ 
+ /*
+  * We are using width_in_blocks which is supposed to be private to
+--- a/DesktopEditor/cximage/tiff/tif_ojpeg.c
++++ b/DesktopEditor/cximage/tiff/tif_ojpeg.c
+@@ -189,8 +189,13 @@
+ #include <setjmp.h>
+ #endif
+ 
++#ifdef _LINUX
++#include <jpeglib.h>
++#include <jerror.h>
++#else
+ #include "../jpeg/jpeglib.h"
+ #include "../jpeg/jerror.h"
++#endif
+ 
+ typedef struct jpeg_error_mgr jpeg_error_mgr;
+ typedef struct jpeg_common_struct jpeg_common_struct;
+--- a/DesktopEditor/cximage/CxImage/ximamng.h
++++ b/DesktopEditor/cximage/CxImage/ximamng.h
+@@ -23,6 +23,12 @@
+ 
+ #if CXIMAGE_SUPPORT_MNG
+ 
++extern "C" {
++#ifdef _LINUX
++/* System libmng. Feature macros come from the qmake DEFINES and from
++   libmng_conf.h. Do not include the private data/error headers. */
++#include <libmng.h>
++#else
+ //#define MNG_NO_CMS
+ #define MNG_SUPPORT_DISPLAY
+ #define MNG_SUPPORT_READ
+@@ -30,10 +36,10 @@
+ #define MNG_ACCESS_CHUNKS
+ #define MNG_STORE_CHUNKS
+ 
+-extern "C" {
+ #include "../mng/libmng.h"
+ #include "../mng/libmng_data.h"
+ #include "../mng/libmng_error.h"
++#endif
+ }
+ 
+ //uint32_t _stdcall RunMNGThread(void *lpParam);
+--- a/DesktopEditor/cximage/CxImage/ximamng.cpp
++++ b/DesktopEditor/cximage/CxImage/ximamng.cpp
+@@ -71,11 +71,13 @@
+ 	mymng->bpp    = 24;
+ 	mymng->effwdt = ((((width * mymng->bpp) + 31) >> 5) << 2);
+ 
+-	if (mng->bUseBKGD){
++	if (mng_get_usebkgd(mng)){
++		mng_uint16 red = 0, green = 0, blue = 0;
++		mng_get_bgcolor(mng, &red, &green, &blue);
+ 		mymng->nBkgndIndex = 0;
+-		mymng->nBkgndColor.rgbRed  = mng->iBGred >> 8;
+-		mymng->nBkgndColor.rgbGreen =mng->iBGgreen >> 8;
+-		mymng->nBkgndColor.rgbBlue = mng->iBGblue >> 8;
++		mymng->nBkgndColor.rgbRed   = red >> 8;
++		mymng->nBkgndColor.rgbGreen = green >> 8;
++		mymng->nBkgndColor.rgbBlue  = blue >> 8;
+ 	}
+ 
+ 	mymng->image = (uint8_t*)malloc(height * mymng->effwdt);
+@@ -234,8 +236,6 @@
+ 
+ 		SetCallbacks(hmng);
+ 
+-		mng_datap pData = (mng_datap)hmng;
+-
+ 		// read in the image
+ 		info.nNumFrames=0;
+ 		int32_t retval=MNG_NOERROR;
+@@ -243,9 +243,15 @@
+ 		retval = mng_readdisplay(hmng);
+ 
+ 		if (retval != MNG_NOERROR && retval != MNG_NEEDTIMERWAIT){
+-			mng_store_error(hmng,retval,0,0);
+-			if (hmng->zErrortext){
+-				cx_throw(hmng->zErrortext);
++			mng_int8 severity = 0;
++			mng_chunkid chunkname = 0;
++			mng_uint32 chunkseq = 0;
++			mng_int32 extra1 = 0;
++			mng_int32 extra2 = 0;
++			mng_pchar zErrortext = MNG_NULL;
++			mng_getlasterror(hmng, &severity, &chunkname, &chunkseq, &extra1, &extra2, &zErrortext);
++			if (zErrortext){
++				cx_throw(zErrortext);
+ 			} else {
+ 				cx_throw("Error in MNG file");
+ 			}
+@@ -253,14 +259,14 @@
+ 
+ 		if (info.nEscape == -1) {
+ 			// Return output dimensions only
+-			head.biWidth = hmng->iWidth;
+-			head.biHeight = hmng->iHeight;
++			head.biWidth = mng_get_imagewidth(hmng);
++			head.biHeight = mng_get_imageheight(hmng);
+ 			info.dwType = CXIMAGE_FORMAT_MNG;
+ 			return true;
+ 		}
+ 
+ 		// read all
+-		while(pData->bReading){
++		while (mng_status_reading(hmng)){
+ 			retval = mng_display_resume(hmng);
+ 			info.nNumFrames++;
+ 		}
+--- a/DesktopEditor/raster/Jp2/openjpeg/openjpeg.pri
++++ b/DesktopEditor/raster/Jp2/openjpeg/openjpeg.pri
+@@ -36,24 +36,33 @@
+ OPENJPEG_LIB_JP2 = $$OPENJPEG_PATH/src/lib/openjp2
+ 
+ INCLUDEPATH += \
+-    $$OPENJPEG_LIB_JP2 \
+ 	$$PWD
+ 
+-DEFINES += USE_JPIP
+-DEFINES += OPJ_STATIC
+-
+-#CONFIG += use_all_in_one
+-!use_all_in_one {
+-    # uncomment for developing
+-    HEADERS += $$files($$OPENJPEG_LIB_JP2/*.h, false)
+-    HEADERS += $$PWD/opj_config.h $$PWD/opj_config_private.h $$PWD/opj_apps_config.h
+-
+-    SOURCES += $$files($$OPENJPEG_LIB_JP2/*.c, false)
+-    SOURCES -= $$files($$OPENJPEG_LIB_JP2/bench_*, false)
+-    SOURCES -= $$files($$OPENJPEG_LIB_JP2/test_*, false)
+-    SOURCES -= $$files($$OPENJPEG_LIB_JP2/*_generate_*, false)
++# OpenJPEG 2.4 is bundled. Linux links system libopenjp2 (public API only).
++# OPJ_STATIC is a static-library define and must not be set for the shared
++# system library. USE_JPIP pulls in the bundled JPIP sources.
++unix:!mac:!android {
++    CONFIG += link_pkgconfig
++    PKGCONFIG += libopenjp2
+ } else {
+-    SOURCES += $$PWD/opj_engine.cpp
++    INCLUDEPATH += $$OPENJPEG_LIB_JP2
++
++    DEFINES += USE_JPIP
++    DEFINES += OPJ_STATIC
++
++    #CONFIG += use_all_in_one
++    !use_all_in_one {
++        # uncomment for developing
++        HEADERS += $$files($$OPENJPEG_LIB_JP2/*.h, false)
++        HEADERS += $$PWD/opj_config.h $$PWD/opj_config_private.h $$PWD/opj_apps_config.h
++
++        SOURCES += $$files($$OPENJPEG_LIB_JP2/*.c, false)
++        SOURCES -= $$files($$OPENJPEG_LIB_JP2/bench_*, false)
++        SOURCES -= $$files($$OPENJPEG_LIB_JP2/test_*, false)
++        SOURCES -= $$files($$OPENJPEG_LIB_JP2/*_generate_*, false)
++    } else {
++        SOURCES += $$PWD/opj_engine.cpp
++    }
+ }
+ 
+ HEADERS += $$PWD/opj_bgraframe.h
+--- a/DesktopEditor/raster/Jp2/openjpeg/opj_bgraframe.cpp
++++ b/DesktopEditor/raster/Jp2/openjpeg/opj_bgraframe.cpp
+@@ -37,10 +37,31 @@
+ #include "./opj_bgraframe.h"
+ 
+ #include "../../../common/File.h"
++#ifdef _LINUX
++#include <stdio.h>
++#include <openjpeg.h>
++/* Public openjpeg.h does not publish the stream chunk size or the file
++   seek macros. 1 MiB matches the bundled private header. fseek/ftell match
++   the bundled Linux definitions (long is 64-bit on the platforms we build). */
++#ifndef OPJ_J2K_STREAM_CHUNK_SIZE
++#define OPJ_J2K_STREAM_CHUNK_SIZE 0x100000
++#endif
++#ifndef OPJ_FSEEK
++#define OPJ_FSEEK(stream, offset, whence) fseek((stream), (long)(offset), (whence))
++#endif
++#ifndef OPJ_FTELL
++#define OPJ_FTELL(stream) ftell(stream)
++#endif
++/* Color conversion is the OpenJPEG app helper, not part of libopenjp2.
++   The path is relative to this file so it does not depend on the private
++   openjp2 include directory. */
++#include "openjpeg-2.4.0/src/bin/common/color.c"
++#else
+ #include "opj_includes.h"
+ #include "opj_malloc.h"
+ 
+ #include "../../bin/common/color.c"
++#endif
+ 
+ #define USE_SEPARATE_COMPONENTS
+ #ifdef USE_SEPARATE_COMPONENTS
