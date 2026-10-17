@@ -1,0 +1,224 @@
+diff --git a/ChromiumBasedEditors/lib/cef_pri/cef_system.pri b/ChromiumBasedEditors/lib/cef_pri/cef_system.pri
+--- a/ChromiumBasedEditors/lib/cef_pri/cef_system.pri
++++ b/ChromiumBasedEditors/lib/cef_pri/cef_system.pri
+@@ -11,7 +11,8 @@
+     USING_CEF_SHARED \
+     NDEBUG \
+     NO_CSR \
+-    CEF_VERSION_155
++    CEF_VERSION_155 \
++    CEF_USE_QT
+ 
+ # int64 / uint32 / uint64 live in src/cef_compat_types.h. Do not -D them:
+ # POLE's "typedef unsigned long long uint64" would become a second uint64_t.
+@@ -22,15 +23,19 @@
+ LIBS += -L$$CEF_SRC_PATH/Release -lcef
+ 
+ CONFIG += link_pkgconfig
+-PKGCONFIG += glib-2.0 gtk+-3.0 gtk+-unix-print-3.0 atk
++# glib stays because CEF and the shared helper code use it. GTK does not:
++# the distro cefclient has Qt window, dialog and print implementations.
++QT += core gui widgets printsupport
++PKGCONFIG += glib-2.0
+ LIBS += -lX11
+ 
+ QMAKE_CXXFLAGS += -fPIC
+ QMAKE_LFLAGS += "-Wl,-rpath,\'\$$ORIGIN\'"
+ QMAKE_LFLAGS += "-Wl,-rpath,$$CEF_SRC_PATH/Release"
+ 
+-# GTK cefclient/shared sources that exist in this CEF. Qt-only, Windows,
+-# macOS, off-screen and cefclient's own main() are left out. extension_util
++# cefclient/shared sources that exist in this CEF. The Linux window, dialog
++# and print pieces are the Qt ones (CEF_USE_QT). GTK, Windows, macOS,
++# off-screen and cefclient's own main() are left out. extension_util
+ # was removed upstream. shared/browser/resource_util_linux.cc duplicates
+ # GetResourceDir from the cefclient copy. client_app_delegates_common.cc and
+ # client_app_delegates_renderer.cc are provided by OnlyOffice
+@@ -40,7 +45,7 @@
+     tests/cefclient/browser/binary_transfer_test.cc \
+     tests/cefclient/browser/binding_test.cc \
+     tests/cefclient/browser/browser_window.cc \
+-    tests/cefclient/browser/browser_window_std_gtk.cc \
++    tests/cefclient/browser/browser_window_std_qt.cc \
+     tests/cefclient/browser/bytes_write_handler.cc \
+     tests/cefclient/browser/client_app_delegates_browser.cc \
+     tests/cefclient/browser/client_browser.cc \
+@@ -50,22 +55,22 @@
+     tests/cefclient/browser/component_test.cc \
+     tests/cefclient/browser/config_test.cc \
+     tests/cefclient/browser/default_client_handler.cc \
+-    tests/cefclient/browser/dialog_handler_gtk.cc \
++    tests/cefclient/browser/dialog_handler_qt.cc \
+     tests/cefclient/browser/dialog_test.cc \
+     tests/cefclient/browser/hang_test.cc \
+     tests/cefclient/browser/image_cache.cc \
+     tests/cefclient/browser/main_context.cc \
+     tests/cefclient/browser/main_context_impl.cc \
+     tests/cefclient/browser/main_context_impl_posix.cc \
+-    tests/cefclient/browser/main_message_loop_multithreaded_gtk.cc \
++    tests/cefclient/browser/main_message_loop_multithreaded_qt.cc \
+     tests/cefclient/browser/media_router_test.cc \
+     tests/cefclient/browser/preferences_test.cc \
+-    tests/cefclient/browser/print_handler_gtk.cc \
++    tests/cefclient/browser/print_handler_qt.cc \
+     tests/cefclient/browser/resource_util_linux.cc \
+     tests/cefclient/browser/response_filter_test.cc \
+     tests/cefclient/browser/root_window.cc \
+     tests/cefclient/browser/root_window_create.cc \
+-    tests/cefclient/browser/root_window_gtk.cc \
++    tests/cefclient/browser/root_window_qt.cc \
+     tests/cefclient/browser/root_window_manager.cc \
+     tests/cefclient/browser/root_window_views.cc \
+     tests/cefclient/browser/scheme_test.cc \
+@@ -74,7 +79,6 @@
+     tests/cefclient/browser/temp_window_x11.cc \
+     tests/cefclient/browser/test_runner.cc \
+     tests/cefclient/browser/urlrequest_test.cc \
+-    tests/cefclient/browser/util_gtk.cc \
+     tests/cefclient/browser/views_menu_bar.cc \
+     tests/cefclient/browser/views_overlay_browser.cc \
+     tests/cefclient/browser/views_overlay_controls.cc \
+@@ -82,7 +86,7 @@
+     tests/cefclient/browser/views_window.cc \
+     tests/cefclient/browser/window_test.cc \
+     tests/cefclient/browser/window_test_runner.cc \
+-    tests/cefclient/browser/window_test_runner_gtk.cc \
++    tests/cefclient/browser/window_test_runner_qt.cc \
+     tests/cefclient/browser/window_test_runner_views.cc \
+     tests/cefclient/common/scheme_test_common.cc \
+     tests/cefclient/renderer/client_renderer.cc \
+diff --git a/ChromiumBasedEditors/lib/src/cefapplication.cpp b/ChromiumBasedEditors/lib/src/cefapplication.cpp
+--- a/ChromiumBasedEditors/lib/src/cefapplication.cpp
++++ b/ChromiumBasedEditors/lib/src/cefapplication.cpp
+@@ -35,11 +35,8 @@
+ 
+ #if defined(_LINUX) && !defined(_MAC)
+ 
+-#include <gdk/gdk.h>
+-#include <gdk/gdkx.h>
+-#include <gtk/gtk.h>
+-
+ #include <X11/Xlib.h>
++#include <X11/Xresource.h>
+ 
+ #undef Status   // Definition conflicts with cef_urlrequest.h
+ #undef Success  // Definition conflicts with cef_message_router.h
+@@ -180,12 +177,6 @@
+ 	typedef MainMessageLoopMultithreadedWin MainMessageLoopMultithreaded;
+ }
+ #endif
+-#if defined(_LINUX) && !defined(_MAC)
+-#include "tests/cefclient/browser/main_message_loop_multithreaded_gtk.h"
+-namespace client {
+-	typedef MainMessageLoopMultithreadedGtk MainMessageLoopMultithreaded;
+-}
+-#endif
+ #if defined(_MAC)
+ namespace client {
+ 	typedef MainMessageLoopStd MainMessageLoopMultithreaded;
+@@ -421,12 +412,10 @@
+ 
+ 	m_pInternal->context->PopulateSettings(&settings);
+ 
+-	bool isMultithreaded = false;
+ #ifdef WIN32
+-	isMultithreaded = true;
+-#endif
+-#if defined(_LINUX) && !defined(_MAC)
+-	//isMultithreaded = true;
++	// Linux keeps the external Qt pump (or MainMessageLoopStd). The Qt
++	// multithreaded loop calls qApp->exec() and would fight that pump.
++	bool isMultithreaded = true;
+ #endif
+ 
+ 	pManager->SetApplication(this);
+@@ -437,6 +426,7 @@
+ 		settings.external_message_pump = 1;
+ #endif
+ 	}
++#ifdef WIN32
+ 	else if (isMultithreaded)
+ 	{
+ 		settings.multi_threaded_message_loop = 1;
+@@ -448,6 +438,7 @@
+ 		m_pInternal->message_loop = new client::MainMessageLoopMultithreaded();
+ #endif
+ 	}
++#endif
+ 	else
+ 	{
+ #if defined(CEF_VERSION_ABOVE_102)
+@@ -483,17 +474,14 @@
+ 	LOGGER_STRING("CApplicationCEF::Init_CEF::initialize");
+ 
+ #if defined(_LINUX) && !defined(_MAC)
+-	// The Chromium sandbox requires that there only be a single thread during
+-	// initialization. Therefore initialize GTK after CEF.
+-	gtk_init(&argc, &argv);
+-
+ 	// Install xlib error handlers so that the application won't be terminated
+-	// on non-fatal errors. Must be done after initializing GTK.
++	// on non-fatal errors.
+ 	XSetErrorHandler(XErrorHandlerImpl);
+ 	XSetIOErrorHandler(XIOErrorHandlerImpl);
+ 
+ 	Display* pDisplay = (Display*)CefGetXDisplay();
+-	XSynchronize(pDisplay, True);
++	if (pDisplay)
++		XSynchronize(pDisplay, True);
+ #endif
+ 
+ 	CPluginsManager oPlugins;
+diff --git a/ChromiumBasedEditors/lib/src/cefwrapper/client_app.h b/ChromiumBasedEditors/lib/src/cefwrapper/client_app.h
+--- a/ChromiumBasedEditors/lib/src/cefwrapper/client_app.h
++++ b/ChromiumBasedEditors/lib/src/cefwrapper/client_app.h
+@@ -49,9 +49,8 @@
+ 
+ #if defined(_LINUX) && !defined(_MAC)
+ #include <X11/Xlib.h>
+-#include <gdk/gdk.h>
+-#include <gdk/gdkx.h>
+-#include <gtk/gtk.h>
++#include <X11/Xresource.h>
++#include <stdlib.h>
+ #endif
+ 
+ #include "../../../../../core/Common/Network/FileTransporter/include/FileTransporter.h"
+@@ -116,16 +115,28 @@
+ #endif
+ 
+ #if defined(_LINUX) && !defined(_MAC)
+-	GdkScreen* screen = gdk_screen_get_default();
+-
+-	if (screen)
++	// gdk_screen_get_resolution() is the Xft.dpi setting. Read it from the
++	// X resource database so this does not initialize GTK.
++	Display* dpy = XOpenDisplay(NULL);
++	if (dpy)
+ 	{
+-		double dScale = gdk_screen_get_resolution(screen);
+-
+-		int wPx = gdk_screen_get_width(screen);
+-		int hPx = gdk_screen_get_height(screen);
+-		int wMm = gdk_screen_get_width_mm(screen);
+-		int hMm = gdk_screen_get_height_mm(screen);
++		int screen = DefaultScreen(dpy);
++		double dScale = 96.0;
++		int wPx = DisplayWidth(dpy, screen);
++		int hPx = DisplayHeight(dpy, screen);
++		int wMm = DisplayWidthMM(dpy, screen);
++		int hMm = DisplayHeightMM(dpy, screen);
++		if (char* rms = XResourceManagerString(dpy))
++		{
++			XrmInitialize();
++			XrmDatabase db = XrmGetStringDatabase(rms);
++			char* type = NULL;
++			XrmValue value;
++			if (XrmGetResource(db, "Xft.dpi", "Xft.Dpi", &type, &value) && value.addr)
++				dScale = atof(value.addr);
++			XrmDestroyDatabase(db);
++		}
++		XCloseDisplay(dpy);
+ 
+ 		if (wMm < 1)
+ 			wMm = 1;

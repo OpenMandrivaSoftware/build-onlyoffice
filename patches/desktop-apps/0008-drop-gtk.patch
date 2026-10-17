@@ -1,0 +1,472 @@
+diff --git a/win-linux/defaults.pri b/win-linux/defaults.pri
+--- a/win-linux/defaults.pri
++++ b/win-linux/defaults.pri
+@@ -217,9 +217,6 @@
+                 $$PWD/src/platform_linux/cdialogcertificateinfo.h \
+                 $$PWD/src/platform_linux/singleapplication.h \
+                 $$PWD/src/platform_linux/xdgdesktopportal.h \
+-                $$PWD/src/platform_linux/gtkfilechooser.h \
+-                $$PWD/src/platform_linux/gtkprintdialog.h \
+-                $$PWD/src/platform_linux/gtkutils.h \
+                 $$PWD/src/platform_linux/xcbutils.h \
+                 $$PWD/extras/update-daemon/src/classes/csocket.h
+ 
+@@ -230,14 +227,11 @@
+                 $$PWD/src/platform_linux/cdialogcertificateinfo.cpp \
+                 $$PWD/src/platform_linux/singleapplication.cpp \
+                 $$PWD/src/platform_linux/xdgdesktopportal.cpp \
+-                $$PWD/src/platform_linux/gtkfilechooser.cpp \
+-                $$PWD/src/platform_linux/gtkprintdialog.cpp \
+-                $$PWD/src/platform_linux/gtkutils.cpp \
+                 $$PWD/src/platform_linux/xcbutils.cpp \
+                 $$PWD/extras/update-daemon/src/classes/csocket.cpp
+ 
+     CONFIG += link_pkgconfig
+-    PKGCONFIG += glib-2.0 gtk+-3.0 atk gtk+-unix-print-3.0 xcb xcb-shape libnotify
++    PKGCONFIG += glib-2.0 xcb xcb-shape libnotify
+     LIBS += -lX11 -lcups
+ 
+     cef_version_107 {
+diff --git a/win-linux/src/main.cpp b/win-linux/src/main.cpp
+--- a/win-linux/src/main.cpp
++++ b/win-linux/src/main.cpp
+@@ -36,7 +36,6 @@
+ #ifdef _WIN32
+ # include "platform_win/singleapplication.h"
+ #else
+-# include <gtk/gtk.h>
+ # include "platform_linux/singleapplication.h"
+ # include "components/cmessage.h"
+ # include <unistd.h>
+@@ -137,9 +136,6 @@
+     app.setStyle(QStyleFactory::create("Fusion"));
+ 
+     /* the order is important */
+-#ifdef __linux
+-    gtk_init(&argc, &argv);
+-#endif
+     CApplicationCEF::Prepare(argc, argv);
+     CApplicationCEF* application_cef = new CApplicationCEF();
+     CAscApplicationManager &manager = AscAppManager::getInstance();
+diff --git a/win-linux/src/components/cfiledialog.cpp b/win-linux/src/components/cfiledialog.cpp
+--- a/win-linux/src/components/cfiledialog.cpp
++++ b/win-linux/src/components/cfiledialog.cpp
+@@ -48,7 +48,6 @@
+ # include <platform_win/filechooser.h>
+ #else
+ # include "platform_linux/xdgdesktopportal.h"
+-# include "platform_linux/gtkfilechooser.h"
+ #endif
+ 
+ static const char *IMAGE_TYPE = "image",
+@@ -172,13 +171,8 @@
+         if (WindowHelper::useNativeDialog()) {
+ #ifdef __linux__
+             QStringList result;
+-            if (WindowHelper::useGtkDialog()) {
+-                result = Gtk::openGtkFileChooser(p, Gtk::Mode::SAVE, title,
+-                                                 n, "", f, &sf);
+-            } else {
+-                result = Xdg::openXdgPortal(p, Xdg::Mode::SAVE, title,
+-                                            n, "", f, &sf);
+-            }
++            result = Xdg::openXdgPortal(p, Xdg::Mode::SAVE, title,
++                                        n, "", f, &sf);
+             return (result.size() > 0) ? result.at(0) : QString();
+ #else
+ # ifndef __OS_WIN_XP
+@@ -294,13 +288,8 @@
+ 
+     if (WindowHelper::useNativeDialog()) {
+ #ifdef __linux__
+-        if (WindowHelper::useGtkDialog()) {
+-            return Gtk::openGtkFileChooser(_parent, Gtk::Mode::OPEN, title, "",
+-                                           path, _filter_, &_sel_filter, multi);
+-        } else {
+-            return Xdg::openXdgPortal(_parent, Xdg::Mode::OPEN, title, "",
+-                                      path, _filter_, &_sel_filter, multi);
+-        }    
++        return Xdg::openXdgPortal(_parent, Xdg::Mode::OPEN, title, "",
++                                  path, _filter_, &_sel_filter, multi);    
+ #else
+ # ifndef __OS_WIN_XP
+     return Win::openWinFileChooser(_parent, Win::Mode::OPEN, title, "",
+@@ -448,13 +437,8 @@
+     if (WindowHelper::useNativeDialog()) {
+ #ifdef __linux__
+         QStringList result;
+-        if (WindowHelper::useGtkDialog()) {
+-            result = Gtk::openGtkFileChooser(_parent, Gtk::Mode::FOLDER, title,
+-                                             "", folder, "", nullptr);
+-        } else {
+-            result = Xdg::openXdgPortal(_parent, Xdg::Mode::FOLDER, title,
+-                                        "", folder, "", nullptr);
+-        }
++        result = Xdg::openXdgPortal(_parent, Xdg::Mode::FOLDER, title,
++                                    "", folder, "", nullptr);
+         return (result.size() > 0) ? result.at(0) : QString();
+ #else
+ # ifndef __OS_WIN_XP
+diff --git a/win-linux/src/ceditortools.cpp b/win-linux/src/ceditortools.cpp
+--- a/win-linux/src/ceditortools.cpp
++++ b/win-linux/src/ceditortools.cpp
+@@ -51,7 +51,8 @@
+ #ifdef _WIN32
+ # include <platform_win/printdialog.h>
+ #else
+-# include <platform_linux/gtkprintdialog.h>
++# include <QPrintDialog>
++# include <QPageRanges>
+ #endif
+ 
+ using namespace NSEditorApi;
+@@ -161,17 +162,28 @@
+ # ifdef FILEDIALOG_DONT_USE_NATIVEDIALOGS
+             CPrintDialog * dialog =  new CPrintDialog(printer, parent);
+ # else
+-            GtkPrintDialog * dialog = new GtkPrintDialog(printer, parent);
++            QPrintDialog * dialog = new QPrintDialog(printer, parent);
+ # endif
+ #endif // _WIN32
+ 
+             dialog->setWindowTitle(QObject::tr("Print Document"));
++#ifdef _WIN32
+             dialog->setEnabledOptions(QPrintDialog::PrintPageRange | QPrintDialog::PrintToFile);
+             if (!(currentPage < 0)) {
+                 currentPage++;
+                 dialog->setEnabledOptions(dialog->enabledOptions() | QPrintDialog::PrintCurrentPage);
+                 dialog->setOptions(dialog->options() | QPrintDialog::PrintCurrentPage);
+             }
++#else
++            // Qt 6 names these setOptions/options. They choose which dialog
++            // controls are available, which is what the GTK dialog's
++            // setEnabledOptions did.
++            dialog->setOptions(QPrintDialog::PrintPageRange | QPrintDialog::PrintToFile);
++            if (!(currentPage < 0)) {
++                currentPage++;
++                dialog->setOptions(dialog->options() | QPrintDialog::PrintCurrentPage);
++            }
++#endif
+             dialog->setPrintRange(AscAppManager::printData().printRange());
+             if ( dialog->printRange() == QPrintDialog::PageRange )
+                 dialog->setFromTo(AscAppManager::printData().pageFrom(), AscAppManager::printData().pageTo());
+@@ -208,8 +220,22 @@
+                     page_ranges.append(PageRanges(1, pagesCount));
+                     break;
+                 case QPrintDialog::PageRange:
++#ifdef _WIN32
+                     page_ranges = AscAppManager::printData().useSystemDialog() ?
+                                       dialog->getPageRanges() : AscAppManager::printData().pageRanges();
++#else
++                    if (AscAppManager::printData().useSystemDialog()) {
++                        const QList<QPageRanges::Range> ranges = printer->pageRanges().toRangeList();
++                        if (ranges.isEmpty())
++                            page_ranges.append(PageRanges(dialog->fromPage(), dialog->toPage()));
++                        else {
++                            for (const QPageRanges::Range &range : ranges)
++                                page_ranges.append(PageRanges(range.from, range.to));
++                        }
++                    } else {
++                        page_ranges = AscAppManager::printData().pageRanges();
++                    }
++#endif
+                     break;
+                 case QPrintDialog::Selection:
+                     page_ranges.append(PageRanges(-1, -1));
+diff --git a/win-linux/src/utils.cpp b/win-linux/src/utils.cpp
+--- a/win-linux/src/utils.cpp
++++ b/win-linux/src/utils.cpp
+@@ -34,9 +34,14 @@
+  */
+ 
+ #ifdef __linux__
+-# include "platform_linux/gtkutils.h"
++// Qt's `signals` macro collides with GObject.
++# pragma push_macro("signals")
++# undef signals
++# include <glib.h>
++# pragma pop_macro("signals")
+ #endif
+ #include "utils.h"
++#include <QMimeDatabase>
+ #include "defines.h"
+ #include <QSettings>
+ #include <QStandardPaths>
+@@ -744,9 +749,17 @@
+     }
+ # endif
+ #else
+-    QString _path = QString::fromStdWString(path);
+-    std::string uri = "file://" + _path.toStdString();
+-    add_to_recent(uri.c_str());
++    const QString qpath = QString::fromStdWString(path);
++    const QByteArray uri = QUrl::fromLocalFile(qpath).toEncoded();
++    const QByteArray mime = QMimeDatabase().mimeTypeForFile(qpath).name().toUtf8();
++    gchar *recent = g_build_filename(g_get_user_data_dir(), "recently-used.xbel", nullptr);
++    GBookmarkFile *marks = g_bookmark_file_new();
++    g_bookmark_file_load_from_file(marks, recent, nullptr);
++    g_bookmark_file_set_mime_type(marks, uri.constData(), mime.constData());
++    g_bookmark_file_add_application(marks, uri.constData(), "DesktopEditors", nullptr);
++    g_bookmark_file_to_file(marks, recent, nullptr);
++    g_bookmark_file_free(marks);
++    g_free(recent);
+ #endif
+ }
+ 
+diff --git a/win-linux/src/components/cmessage.cpp b/win-linux/src/components/cmessage.cpp
+--- a/win-linux/src/components/cmessage.cpp
++++ b/win-linux/src/components/cmessage.cpp
+@@ -49,22 +49,7 @@
+ #include "cascapplicationmanagerwrapper.h"
+ #include <initializer_list>
+ #include <memory.h>
+-#ifdef __linux__
+-# pragma push_macro("signals")
+-# undef signals
+-# include "platform_linux/gtkutils.h"
+-# pragma pop_macro("signals")
+-# include <gtk/gtkmessagedialog.h>
+-# include <gtk/gtkcheckbutton.h>
+-# include <gtk/gtktogglebutton.h>
+-# include <gdk/gdkx.h>
+-# include "res/gresource.c"
+-# define toCharPtr(qstr) qstr.toLocal8Bit().data()
+-# define AddButton(name, response) \
+-    gtk_dialog_add_button(GTK_DIALOG(dialog), name, response)
+-# define GrabFocus(response) \
+-    gtk_widget_grab_focus(gtk_dialog_get_widget_for_response(GTK_DIALOG(dialog), response))
+-#else
++#ifdef _WIN32
+ # include "defines.h"
+ # include "platform_win/resource.h"
+ # include <string.h>
+@@ -752,7 +737,7 @@
+     return result;
+ }
+ }
+-#else
++#elif 0
+ static void on_link_clicked(GtkWidget*, gchar *uri, gpointer)
+ {
+     gtk_show_uri(NULL, uri, GDK_CURRENT_TIME, NULL);
+@@ -974,8 +959,7 @@
+         return WinMsg::showMessage(parent, msg, msgType, msgBtns, opts);
+ # endif
+ #else
+-        WindowHelper::CParentDisable oDisabler(parent);
+-        return GtkMsg::showMessage(parent, msg, msgType, msgBtns, opts);
++        return QtMsg::showMessage(parent, msg, msgType, msgBtns, opts);
+ #endif
+     }
+     return QtMsg::showMessage(parent, msg, msgType, msgBtns, opts);
+diff --git a/win-linux/src/components/cprintprogress.cpp b/win-linux/src/components/cprintprogress.cpp
+--- a/win-linux/src/components/cprintprogress.cpp
++++ b/win-linux/src/components/cprintprogress.cpp
+@@ -34,10 +34,6 @@
+  */
+ 
+ #ifdef __linux__
+-# include <gtk/gtk.h>
+-# include "cascapplicationmanagerwrapper.h"
+-# include "platform_linux/gtkutils.h"
+-# include <gdk/gdkx.h>
+ # include "defines.h"
+ #else
+ # include <shlobj.h>
+@@ -50,27 +46,6 @@
+ #include <QPushButton>
+ #include "utils.h"
+ 
+-#ifdef __linux__
+-static void on_response(GtkDialog*, gint resp_id, gpointer data) {
+-    switch (resp_id) {
+-    case GTK_RESPONSE_DELETE_EVENT:
+-    case GTK_RESPONSE_CANCEL: {
+-        bool *isRejected = (bool*)data;
+-        *isRejected = true;
+-        break;
+-    }
+-    default:
+-        break;
+-    }
+-}
+-
+-static gboolean on_key_press(GtkWidget*, GdkEventKey *ev, gpointer) {
+-    if (ev->keyval == GDK_KEY_Escape || ev->keyval == GDK_KEY_space)
+-        return TRUE;
+-    return FALSE;
+-}
+-#endif
+-
+ class CPrintProgress::CPrintProgressPrivate
+ {
+ #pragma push_macro("KeyPress")
+@@ -96,6 +71,10 @@
+ public:
+     CPrintProgressPrivate(QWidget *parent = nullptr) {
+         useNativeDialog = WindowHelper::useNativeDialog();
++#ifdef __linux__
++        // The Linux "native" progress dialog was a GTK window. Qt draws it.
++        useNativeDialog = false;
++#endif
+         const QString primaryText = QObject::tr("Printing...", "CPrintProgress");
+         const QString secondaryText = QObject::tr("Document is preparing", "CPrintProgress");
+         const QString cancelText = QObject::tr("Cancel", "CPrintProgress");
+@@ -113,37 +92,6 @@
+                     CoUninitialize();
+                 }
+             }
+-#else
+-            Window parent_xid = (parent) ? (Window)parent->winId() : 0L;
+-            if (AscAppManager::isRtlEnabled())
+-                gtk_widget_set_default_direction(GTK_TEXT_DIR_RTL);
+-            GtkDialogFlags flags = (GtkDialogFlags)(GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT);
+-            gtkDlg = gtk_message_dialog_new(NULL, flags, GTK_MESSAGE_OTHER, GTK_BUTTONS_NONE, "%s", primaryText.toLocal8Bit().data());
+-            gtk_window_set_type_hint(GTK_WINDOW(gtkDlg), GDK_WINDOW_TYPE_HINT_DIALOG);
+-            gtk_window_set_default_size(GTK_WINDOW(gtkDlg), 350, 150);
+-            if (GtkWidget *img = gtk_message_dialog_get_image(GTK_MESSAGE_DIALOG(gtkDlg)))
+-                gtk_widget_destroy(img);
+-            g_signal_connect(G_OBJECT(gtkDlg), "realize", G_CALLBACK(set_parent), (gpointer)&parent_xid);
+-            g_signal_connect(G_OBJECT(gtkDlg), "map_event", G_CALLBACK(set_focus), NULL);
+-            g_signal_connect(G_OBJECT(gtkDlg), "response", G_CALLBACK(on_response), (gpointer)&isRejected);
+-            g_signal_connect(G_OBJECT(gtkDlg), "key-press-event", G_CALLBACK(on_key_press), NULL);
+-            tag.dialog = gtkDlg; // unable to send parent_xid via g_signal_connect and "focus_out_event"
+-            tag.parent_xid = (ulong)parent_xid;
+-            g_signal_connect_swapped(G_OBJECT(gtkDlg), "focus_out_event", G_CALLBACK(focus_out), (gpointer)&tag);
+-            //gtk_window_set_title(GTK_WINDOW(dialog), APP_TITLE);
+-            gtk_message_dialog_format_secondary_text(GTK_MESSAGE_DIALOG(gtkDlg), "%s", secondaryText.toLocal8Bit().data());
+-
+-            gtk_dialog_add_button(GTK_DIALOG(gtkDlg), cancelText.toLocal8Bit().data(), GTK_RESPONSE_CANCEL);
+-            gtk_widget_grab_focus(gtk_dialog_get_widget_for_response(GTK_DIALOG(gtkDlg), GTK_RESPONSE_CANCEL));
+-            gtkProgressBar = gtk_progress_bar_new();
+-            gtk_progress_bar_set_pulse_step(GTK_PROGRESS_BAR(gtkProgressBar), 0.05);
+-            //GtkWidget *cont_area = gtk_dialog_get_content_area(GTK_DIALOG(gtkDlg));
+-            GtkWidget *msg_area = gtk_message_dialog_get_message_area(GTK_MESSAGE_DIALOG(gtkDlg));
+-            gtk_container_add(GTK_CONTAINER(msg_area), gtkProgressBar);
+-
+-            gtk_widget_realize(gtkDlg);
+-            while (gtk_events_pending())
+-                gtk_main_iteration_do(FALSE);
+ #endif
+         } else {
+             auto _dpi_ratio = Utils::getScreenDpiRatioByWidget(parent);
+@@ -185,9 +133,6 @@
+                     SetForegroundWindow(parentHwnd);
+                 }
+             }
+-#else
+-            if (gtkDlg && !gtk_widget_in_destruction(gtkDlg))
+-                gtk_widget_destroy(gtkDlg);
+ #endif
+         } else {
+             if (qtDlg)
+@@ -198,19 +143,10 @@
+ #ifdef _WIN32
+     IProgressDialog *winDlg = nullptr;
+     HWND       parentHwnd = nullptr;
+-#else
+-    GtkWidget *gtkDlg = nullptr;
+-    GtkWidget *gtkProgressBar = nullptr;
+-    bool       isRejected = false;
+ #endif
+     CDialog  *qtDlg = nullptr;
+     QLabel   *qtProgressLabel = nullptr;
+     bool      useNativeDialog = true;
+-
+-private:
+-#ifdef __linux
+-    DialogTag tag;
+-#endif
+ };
+ 
+ CPrintProgress::CPrintProgress(QWidget * parent)
+@@ -232,11 +168,6 @@
+             pimpl->winDlg->SetLine(2, line.toStdWString().c_str(), FALSE, NULL);
+             pimpl->winDlg->SetProgress(current, count);
+         }
+-#else
+-        gtk_message_dialog_format_secondary_text(GTK_MESSAGE_DIALOG(pimpl->gtkDlg), "%s", line.toLocal8Bit().data());
+-        gtk_progress_bar_set_fraction(GTK_PROGRESS_BAR(pimpl->gtkProgressBar), (gdouble)current/count);
+-        while (gtk_events_pending())
+-            gtk_main_iteration_do(FALSE);
+ #endif
+     } else {
+         pimpl->qtProgressLabel->setText(line);
+@@ -269,9 +200,6 @@
+                 ShowWindow(winDlgHwnd, SW_SHOW);
+             }
+         }
+-#else
+-        gtk_widget_show_all(pimpl->gtkDlg);
+-        Utils::processMoreEvents(100);
+ #endif
+     } else {
+         pimpl->qtDlg->show();
+@@ -287,7 +215,7 @@
+ #ifdef _WIN32
+         return pimpl->winDlg && pimpl->winDlg->HasUserCancelled();
+ #else
+-        return pimpl->isRejected;
++        return false;
+ #endif
+     } else {
+         return pimpl->qtDlg->result() == QDialog::Rejected;
+diff --git a/win-linux/src/cthemes.cpp b/win-linux/src/cthemes.cpp
+--- a/win-linux/src/cthemes.cpp
++++ b/win-linux/src/cthemes.cpp
+@@ -36,11 +36,6 @@
+ 
+ #include "cthemes.h"
+ #ifdef Q_OS_LINUX
+-// Qt's `signals` macro collides with GObject struct members of the same name.
+-# pragma push_macro("signals")
+-# undef signals
+-# include <gtk/gtk.h>
+-# pragma pop_macro("signals")
+ # include "cascapplicationmanagerwrapper.h"
+ #endif
+ #include "defines.h"
+@@ -275,23 +270,6 @@
+     g_variant_unref(value);
+ }
+ 
+-static bool themeExists(const char *theme)
+-{
+-    char path[256];
+-    snprintf(path, sizeof(path), "/usr/share/themes/%s/gtk-3.0", theme);
+-    return access(path, F_OK) == 0;
+-}
+-
+-static void applyGtkTheme(bool isDark)
+-{
+-    const char *theme_light = "Adwaita";
+-    const char *theme_dark = "Adwaita-dark";
+-    if (!themeExists(theme_light) || !themeExists(theme_dark))
+-        return;
+-    qputenv("GTK_THEME", isDark ? theme_dark : theme_light);
+-    if (GtkSettings *stn = gtk_settings_get_default())
+-        g_object_set(stn, "gtk-theme-name", isDark ? theme_dark : theme_light, NULL);
+-}
+ #endif
+ 
+ /*
+@@ -472,9 +450,6 @@
+             current->m_priv->is_system = true;
+         }
+ 
+-#ifdef __linux__
+-        applyGtkTheme(current->isDark());
+-#endif
+     }
+ 
+     ~CThemesPrivate()
+@@ -839,9 +814,6 @@
+         // if ( _reg_user.contains(REGISTRY_THEME_KEY_7_2) )
+         //     _reg_user.remove(REGISTRY_THEME_KEY_7_2);
+ 
+-#ifdef __linux__
+-        applyGtkTheme(m_priv->current->isDark());
+-#endif
+     }
+ }
+ 

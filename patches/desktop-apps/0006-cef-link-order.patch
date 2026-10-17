@@ -1,7 +1,7 @@
 diff --git a/win-linux/ASCDocumentEditor.pro b/win-linux/ASCDocumentEditor.pro
 --- a/win-linux/ASCDocumentEditor.pro
 +++ b/win-linux/ASCDocumentEditor.pro
-@@ -56,3 +56,11 @@
+@@ -57,2 +57,10 @@
  HEADERS += \
      src/prop/cmainwindowimpl.h
 +

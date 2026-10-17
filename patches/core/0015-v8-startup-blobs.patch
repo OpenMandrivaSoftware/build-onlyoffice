@@ -1,7 +1,7 @@
 diff --git a/DesktopEditor/doctrenderer/js_internal/v8/v8_base.h b/DesktopEditor/doctrenderer/js_internal/v8/v8_base.h
 --- a/DesktopEditor/doctrenderer/js_internal/v8/v8_base.h
 +++ b/DesktopEditor/doctrenderer/js_internal/v8/v8_base.h
-@@ -131,11 +131,17 @@
+@@ -131,11 +131,21 @@
  		// Distro libv8 keeps natives_blob.bin and snapshot_blob.bin next to
  		// the library, and links system ICU, so the bundled icudtl.dat lookup
  		// must not run.
@@ -17,8 +17,12 @@ diff --git a/DesktopEditor/doctrenderer/js_internal/v8/v8_base.h b/DesktopEditor
 -			v8DataDir = "/usr/lib";
 -		v8::V8::InitializeExternalStartupData(v8DataDir);
 +			sV8BlobDir = L"/usr/lib";
-+		std::string sV8Natives = U_TO_UTF8(sV8BlobDir + L"/natives_blob.bin");
-+		std::string sV8Snapshot = U_TO_UTF8(sV8BlobDir + L"/snapshot_blob.bin");
++		// U_TO_UTF8 is a macro and evaluates its argument twice. The argument
++		// has to be an lvalue; a + expression binds .c_str() to the literal.
++		std::wstring sV8NativesPath = sV8BlobDir + L"/natives_blob.bin";
++		std::wstring sV8SnapshotPath = sV8BlobDir + L"/snapshot_blob.bin";
++		std::string sV8Natives = U_TO_UTF8(sV8NativesPath);
++		std::string sV8Snapshot = U_TO_UTF8(sV8SnapshotPath);
 +		v8::V8::InitializeExternalStartupData(sV8Natives.c_str(), sV8Snapshot.c_str());
  #else
  		v8::V8::InitializeICUDefaultLocation(sPrA.c_str());

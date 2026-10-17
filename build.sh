@@ -117,11 +117,11 @@ cd ..
 
 echo '=== Building ChromiumBasedEditors ==='
 cd desktop-sdk/ChromiumBasedEditors/lib
-qmake ascdocumentscore.pro CONFIG+=core_linux CONFIG+=c++2a $(pkg-config --cflags-only-I gtk+-3.0 |sed -e 's,-I,INCLUDEPATH+=,g') DEFINES+=_LINUX CONFIG+=core_linux QMAKE_CXXFLAGS_RELEASE-=-Werror=format-security
+qmake ascdocumentscore.pro CONFIG+=core_linux CONFIG+=c++2a DEFINES+=_LINUX CONFIG+=core_linux QMAKE_CXXFLAGS_RELEASE-=-Werror=format-security
 make -j16
 
 echo '=== Building ascdocumentscore_helpers ==='
-qmake ascdocumentscore_helper.pro CONFIG+=core_linux CONFIG+=c++2a $(pkg-config --cflags-only-I gtk+-3.0 |sed -e 's,-I,INCLUDEPATH+=,g') DEFINES+=_LINUX CONFIG+=core_linux QMAKE_CXXFLAGS_RELEASE-=-Werror=format-security
+qmake ascdocumentscore_helper.pro CONFIG+=core_linux CONFIG+=c++2a DEFINES+=_LINUX CONFIG+=core_linux QMAKE_CXXFLAGS_RELEASE-=-Werror=format-security
 make -j16
 cd -
 cd desktop-sdk/ChromiumBasedEditors/videoplayerlib
